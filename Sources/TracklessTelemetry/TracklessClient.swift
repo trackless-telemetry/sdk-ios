@@ -111,13 +111,6 @@ public final class Trackless: Sendable {
         }
     }
 
-    /// Record a generic event with optional properties. Properties are PII-guarded.
-    public static func event(_ name: String, properties: [String: String]? = nil) {
-        Task {
-            await state.recordGenericEvent(name: name, properties: properties)
-        }
-    }
-
     // MARK: - Control
 
     /// Force flush pending events to the ingest endpoint.
@@ -312,26 +305,6 @@ actor TracklessState {
         ))
         if debugLogging {
             logger.info("[Trackless] error — \(normalized, privacy: .public) severity=\(severity.rawValue, privacy: .public)")
-        }
-        await checkFlushThreshold()
-    }
-
-    func recordGenericEvent(name: String, properties: [String: String]?) async {
-        guard canRecord() else {
-            debugDrop("not recording", type: "event", name: name)
-            return
-        }
-        guard let normalized = normalizeName(name) else { return }
-
-        await session.recordActivity()
-        let sanitized = PIIGuard.sanitize(properties)
-        await buffer.add(TracklessEvent(
-            type: .event,
-            name: normalized,
-            properties: sanitized
-        ))
-        if debugLogging {
-            logger.info("[Trackless] event — \(normalized, privacy: .public)")
         }
         await checkFlushThreshold()
     }

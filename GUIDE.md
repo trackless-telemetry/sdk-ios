@@ -274,48 +274,21 @@ do {
 
 **When to use:** Caught exceptions, failed network requests, validation errors, any error you want to trend over time.
 
-### Custom Events with Properties
-
-Record arbitrary events with up to 10 key-value properties:
-
-```swift
-Trackless.event("search", properties: [
-    "query_length": "3",
-    "result_count": "42"
-])
-
-Trackless.event("file_upload", properties: [
-    "file_type": "png",
-    "size_bucket": "1mb-5mb"
-])
-
-Trackless.event("share", properties: [
-    "method": "airdrop",
-    "content_type": "photo"
-])
-```
-
-**Property rules:**
-- Max 10 properties per event
-- Keys: letters, numbers, underscores only, max 40 chars
-- Values: strings only, max 100 chars
-- **PII is automatically detected and redacted** — email addresses, phone numbers, IP addresses, and UUIDs in values are replaced with `[REDACTED]`. Keys matching common PII names (`email`, `phone`, `name`, `address`, `userId`, `password`, `token`, `ip`, `ssn`) are stripped entirely.
-
-**When to use:** Any event where typed methods don't fit. Use sparingly — prefer the typed methods above.
-
 ## 4. Event Naming Rules
 
 All event names follow the same rules:
 
 | Rule | Detail |
 |------|--------|
+| **Auto-lowercase** | Names are automatically lowercased — `Export_Clicked` becomes `export_clicked` |
 | **Characters** | Lowercase `a-z`, digits `0-9`, underscores `_`, hyphens `-`, dots `.` |
 | **Length** | 1–100 characters |
 | **Dots** | Dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`) |
 | **No identifiers** | UUIDs, long hex strings, and numeric-only strings >12 chars are rejected |
 
 **Valid:** `checkout_started`, `settings.dark_mode`, `photo-upload`, `nav.settings.display`
-**Invalid:** `Checkout_Started` (uppercase), `user 123` (space), `.leading-dot` (leading dot)
+**Also valid (auto-lowercased):** `Export_Clicked` → `export_clicked`, `Settings.Theme` → `settings.theme`
+**Invalid:** `user 123` (space), `.leading-dot` (leading dot), `export!clicked` (special characters)
 
 ### Hierarchical Grouping with Dots
 
@@ -440,10 +413,6 @@ struct SearchView: View {
                     "search_api",
                     duration: CFAbsoluteTimeGetCurrent() - start
                 )
-                Trackless.event("search", properties: [
-                    "query_length": "\(query.count)",
-                    "result_count": "\(results.count)"
-                ])
             } catch {
                 Trackless.error("search_failed", severity: .error)
             }

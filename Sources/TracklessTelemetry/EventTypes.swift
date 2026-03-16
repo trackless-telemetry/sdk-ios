@@ -9,7 +9,6 @@ public enum TracklessEventType: String, Codable, Sendable {
     case selection
     case performance
     case error
-    case event
 }
 
 /// Error severity levels.
@@ -74,7 +73,6 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
     public var durations: [Double]?
     public var severity: TracklessErrorSeverity?
     public var code: String?
-    public var properties: [String: String]?
 
     public init(
         type: TracklessEventType,
@@ -86,8 +84,7 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
         duration: Double? = nil,
         durations: [Double]? = nil,
         severity: TracklessErrorSeverity? = nil,
-        code: String? = nil,
-        properties: [String: String]? = nil
+        code: String? = nil
     ) {
         self.type = type
         self.name = name
@@ -99,7 +96,6 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
         self.durations = durations
         self.severity = severity
         self.code = code
-        self.properties = properties
     }
 }
 

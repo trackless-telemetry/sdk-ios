@@ -153,13 +153,6 @@ public actor EventBuffer {
             return "\(event.type.rawValue)|\(event.name)|\(event.option ?? "")"
         case .performance:
             return "\(event.type.rawValue)|\(event.name)"
-        case .event:
-            let propsStr = event.properties.map { props in
-                props.sorted(by: { $0.key < $1.key })
-                    .map { "\($0.key)=\($0.value)" }
-                    .joined(separator: ",")
-            } ?? ""
-            return "\(event.type.rawValue)|\(event.name)|\(propsStr)"
         case .session:
             return "\(event.type.rawValue)|\(event.name)"
         case .funnel:

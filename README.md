@@ -54,7 +54,6 @@ Trackless.funnel("checkout", step: "view_cart")
 Trackless.selection("theme", option: "dark")
 Trackless.performance("api_fetch", duration: 0.342)
 Trackless.error("payment_failed", severity: .error, code: "DECLINED")
-Trackless.event("search", properties: ["query_length": "5", "result_count": "12"])
 ```
 
 ## API Reference
@@ -88,7 +87,6 @@ All methods are static, non-blocking, non-throwing, and safe to call from any th
 | `Trackless.selection(_ name: String, option: String)` | Choice from a set of options |
 | `Trackless.performance(_ name: String, duration: Double)` | Timing measurement (seconds) |
 | `Trackless.error(_ name: String, severity: ErrorSeverity, code: String?)` | Application error |
-| `Trackless.event(_ name: String, properties: [String: String]?)` | Custom event with properties |
 
 ### Control Methods
 
@@ -102,6 +100,7 @@ await Trackless.destroy()    // Flush and permanently disable
 
 ## Event Naming Rules
 
+- **Auto-lowercase:** names are automatically lowercased (`Export_Clicked` → `export_clicked`)
 - **Characters:** lowercase letters, numbers, underscores, hyphens, and dots (`[a-z0-9_.-]`)
 - **Length:** 1–100 characters
 - **Dots:** dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`)

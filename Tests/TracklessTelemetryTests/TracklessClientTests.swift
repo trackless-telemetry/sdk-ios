@@ -124,37 +124,6 @@ struct TracklessClientTests {
         #expect(a1 == 1)
     }
 
-    // MARK: - PII Guard
-
-    @Test("PIIGuard strips blocked keys")
-    func piiBlockedKeys() {
-        let result = PIIGuard.sanitize(["email": "test@test.com", "category": "electronics"])
-        #expect(result == ["category": "electronics"])
-    }
-
-    @Test("PIIGuard strips values matching PII patterns")
-    func piiValuePatterns() {
-        let result = PIIGuard.sanitize(["contact": "user@example.com", "color": "blue"])
-        #expect(result == ["color": "blue"])
-    }
-
-    @Test("PIIGuard enforces max 10 properties")
-    func piiMaxProperties() {
-        var props: [String: String] = [:]
-        for i in 0..<15 {
-            props["key_\(i)"] = "value_\(i)"
-        }
-        let result = PIIGuard.sanitize(props)
-        #expect(result != nil)
-        #expect(result!.count == 10)
-    }
-
-    @Test("PIIGuard returns nil when all properties stripped")
-    func piiAllStripped() {
-        let result = PIIGuard.sanitize(["email": "test@test.com", "phone": "555-123-4567"])
-        #expect(result == nil)
-    }
-
     // MARK: - Event Payload Structure
 
     @Test("TracklessEventPayload encodes to correct JSON structure")
