@@ -218,7 +218,10 @@ actor TracklessState {
     }
 
     func recordEvent(type: TracklessEventType, name: String) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: type.rawValue, name: name)
+            return
+        }
         guard let normalized = normalizeName(name) else { return }
 
         await session.recordActivity()
@@ -230,12 +233,16 @@ actor TracklessState {
     }
 
     func recordFunnel(funnelName: String, stepName: String) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: "funnel", name: funnelName)
+            return
+        }
         guard let normalizedFunnel = normalizeName(funnelName),
               let normalizedStep = normalizeName(stepName) else { return }
 
         guard let stepIndex = await funnels.step(funnelName: normalizedFunnel, stepName: normalizedStep) else {
-            return // Duplicate step
+            debugDrop("duplicate funnel step", type: "funnel", name: "\(normalizedFunnel).\(normalizedStep)")
+            return
         }
 
         await session.recordActivity()
@@ -252,9 +259,15 @@ actor TracklessState {
     }
 
     func recordSelection(name: String, option: String) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: "selection", name: name)
+            return
+        }
         guard let normalized = normalizeName(name) else { return }
-        guard !option.isEmpty else { return }
+        guard !option.isEmpty else {
+            debugDrop("empty option", type: "selection", name: name)
+            return
+        }
 
         await session.recordActivity()
         await buffer.add(TracklessEvent(type: .selection, name: normalized, option: option))
@@ -265,9 +278,15 @@ actor TracklessState {
     }
 
     func recordPerformance(name: String, duration: Double) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: "performance", name: name)
+            return
+        }
         guard let normalized = normalizeName(name) else { return }
-        guard duration >= 0 else { return }
+        guard duration >= 0 else {
+            debugDrop("negative duration (\(duration))", type: "performance", name: name)
+            return
+        }
 
         await session.recordActivity()
         await buffer.add(TracklessEvent(type: .performance, name: normalized, duration: duration))
@@ -278,7 +297,10 @@ actor TracklessState {
     }
 
     func recordError(name: String, severity: TracklessErrorSeverity, code: String?) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: "error", name: name)
+            return
+        }
         guard let normalized = normalizeName(name) else { return }
 
         await session.recordActivity()
@@ -295,7 +317,10 @@ actor TracklessState {
     }
 
     func recordGenericEvent(name: String, properties: [String: String]?) async {
-        guard canRecord() else { return }
+        guard canRecord() else {
+            debugDrop("not recording", type: "event", name: name)
+            return
+        }
         guard let normalized = normalizeName(name) else { return }
 
         await session.recordActivity()
@@ -348,6 +373,11 @@ actor TracklessState {
 
     private func canRecord() -> Bool {
         enabled && !destroyed && configured
+    }
+
+    private func debugDrop(_ reason: String, type: String, name: String) {
+        guard debugLogging else { return }
+        logger.warning("[Trackless] dropped \(type, privacy: .public) \"\(name, privacy: .public)\" — \(reason, privacy: .public)")
     }
 
     private func normalizeName(_ name: String) -> String? {

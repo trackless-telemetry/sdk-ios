@@ -7,7 +7,7 @@ import Foundation
 /// - 1-100 characters
 /// - Must not start or end with "."
 /// - No consecutive dots ("..")
-/// - At most one "." character (single-level grouping only)
+/// - No leading, trailing, or consecutive dots
 /// - Must not look like a UUID, hash, or encoded identifier
 enum FeatureValidator {
 
@@ -28,12 +28,6 @@ enum FeatureValidator {
 
         // No consecutive dots
         guard !name.contains("..") else {
-            return false
-        }
-
-        // At most one "." character
-        let dotCount = name.filter { $0 == "." }.count
-        guard dotCount <= 1 else {
             return false
         }
 

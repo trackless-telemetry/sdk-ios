@@ -104,7 +104,7 @@ await Trackless.destroy()    // Flush and permanently disable
 
 - **Characters:** lowercase letters, numbers, underscores, hyphens, and dots (`[a-z0-9_.-]`)
 - **Length:** 1–100 characters
-- **Dots:** at most one dot for single-level grouping (e.g., `settings.theme`)
+- **Dots:** dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`)
 - **No identifiers:** UUIDs, long hex strings, and long numeric strings are rejected
 
 ## How It Works

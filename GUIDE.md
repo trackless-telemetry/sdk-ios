@@ -311,11 +311,31 @@ All event names follow the same rules:
 |------|--------|
 | **Characters** | Lowercase `a-z`, digits `0-9`, underscores `_`, hyphens `-`, dots `.` |
 | **Length** | 1–100 characters |
-| **Dots** | At most one dot for single-level grouping (e.g., `settings.theme`) |
+| **Dots** | Dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`) |
 | **No identifiers** | UUIDs, long hex strings, and numeric-only strings >12 chars are rejected |
 
-**Valid:** `checkout_started`, `settings.dark_mode`, `photo-upload`, `api_v2_call`
-**Invalid:** `Checkout_Started` (uppercase), `user 123` (space), `a.b.c` (multiple dots)
+**Valid:** `checkout_started`, `settings.dark_mode`, `photo-upload`, `nav.settings.display`
+**Invalid:** `Checkout_Started` (uppercase), `user 123` (space), `.leading-dot` (leading dot)
+
+### Hierarchical Grouping with Dots
+
+Use `.` delimiters to create hierarchical event names. The dashboard groups **feature** events by the first dot segment and shows donut charts with the distribution of values within each group.
+
+```swift
+// These create a "theme" group in the dashboard with "dark" and "light" values
+Trackless.feature("theme.dark")
+Trackless.feature("theme.light")
+
+// Deeper hierarchies work too — grouped by first segment ("settings")
+Trackless.feature("settings.display.theme")
+Trackless.feature("settings.display.layout")
+Trackless.feature("settings.notifications")
+```
+
+**Which types support grouping?** Dots are allowed in names for all event types, but the dashboard's automatic group visualization (donut charts) currently applies to **`feature`** events only. For other use cases, consider the typed alternatives:
+
+- Instead of `feature("theme.dark")` / `feature("theme.light")` → use `selection("theme", "dark")` for choice-from-a-set scenarios
+- Use `feature` with dots when you want the dashboard group charts, or when the variants aren't mutually exclusive choices
 
 ## 5. Session Lifecycle
 
