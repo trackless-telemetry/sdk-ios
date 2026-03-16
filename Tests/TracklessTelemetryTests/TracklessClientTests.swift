@@ -16,7 +16,7 @@ struct TracklessClientTests {
 
         let payloads = await buffer.drain(
             environment: "production",
-            context: EventContext(platform: "ios")
+            context: TracklessEventContext(platform: "ios")
         )
         #expect(payloads[0].events[0].count == 3)
     }
@@ -29,7 +29,7 @@ struct TracklessClientTests {
 
         let payloads = await buffer.drain(
             environment: "production",
-            context: EventContext(platform: "ios")
+            context: TracklessEventContext(platform: "ios")
         )
         #expect(payloads[0].events[0].count == 2)
     }
@@ -157,12 +157,12 @@ struct TracklessClientTests {
 
     // MARK: - Event Payload Structure
 
-    @Test("EventPayload encodes to correct JSON structure")
+    @Test("TracklessEventPayload encodes to correct JSON structure")
     func payloadEncoding() throws {
-        let payload = EventPayload(
+        let payload = TracklessEventPayload(
             date: "2026-03-14",
             environment: "sandbox",
-            context: EventContext(platform: "ios", osVersion: "17.0"),
+            context: TracklessEventContext(platform: "ios", osVersion: "17.0"),
             events: [
                 TracklessEvent(type: .feature, name: "export_clicked", count: 3),
                 TracklessEvent(type: .screen, name: "home", count: 1),

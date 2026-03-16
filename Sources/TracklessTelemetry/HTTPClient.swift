@@ -27,7 +27,7 @@ enum HTTPClient {
     static func sendPayload(
         endpoint: String,
         apiKey: String,
-        payload: EventPayload
+        payload: TracklessEventPayload
     ) async throws -> SendResult {
         guard let url = URL(string: endpoint) else {
             throw URLError(.badURL)

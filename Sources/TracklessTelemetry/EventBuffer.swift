@@ -99,8 +99,8 @@ public actor EventBuffer {
         return true
     }
 
-    /// Drain the buffer into EventPayloads and clear it.
-    public func drain(environment: String, context: EventContext) -> [EventPayload] {
+    /// Drain the buffer into TracklessEventPayloads and clear it.
+    public func drain(environment: String, context: TracklessEventContext) -> [TracklessEventPayload] {
         let allEvents = Array(aggregated.values) + individual
         aggregated.removeAll()
         individual.removeAll()
@@ -108,13 +108,13 @@ public actor EventBuffer {
         guard !allEvents.isEmpty else { return [] }
 
         let date = dateFormatter.string(from: Date())
-        var payloads: [EventPayload] = []
+        var payloads: [TracklessEventPayload] = []
 
         var i = 0
         while i < allEvents.count {
             let end = min(i + Self.maxEventsPerFlush, allEvents.count)
             let chunk = Array(allEvents[i..<end])
-            payloads.append(EventPayload(
+            payloads.append(TracklessEventPayload(
                 date: date,
                 environment: environment,
                 context: context,

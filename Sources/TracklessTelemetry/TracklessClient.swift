@@ -11,7 +11,7 @@ public struct TracklessConfig: Sendable {
 
     public let apiKey: String
     public let endpoint: String
-    public let environment: Environment?
+    public let environment: TracklessEnvironment?
     public let enabled: Bool
     public let onError: (@Sendable (Error) -> Void)?
     public let flushIntervalSeconds: TimeInterval
@@ -20,7 +20,7 @@ public struct TracklessConfig: Sendable {
     public init(
         apiKey: String,
         endpoint: String = TracklessConfig.defaultEndpoint,
-        environment: Environment? = nil,
+        environment: TracklessEnvironment? = nil,
         enabled: Bool = true,
         onError: (@Sendable (Error) -> Void)? = nil,
         flushIntervalSeconds: TimeInterval = 60,
@@ -105,7 +105,7 @@ public final class Trackless: Sendable {
     }
 
     /// Record an error event.
-    public static func error(_ name: String, severity: ErrorSeverity = .error, code: String? = nil) {
+    public static func error(_ name: String, severity: TracklessErrorSeverity = .error, code: String? = nil) {
         Task {
             await state.recordError(name: name, severity: severity, code: code)
         }
@@ -140,7 +140,7 @@ public final class Trackless: Sendable {
     // MARK: - Environment Auto-Detection
 
     /// Auto-detect from build configuration.
-    static func detectEnvironment() -> Environment {
+    static func detectEnvironment() -> TracklessEnvironment {
         #if DEBUG
         return .sandbox
         #else
@@ -157,7 +157,7 @@ actor TracklessState {
     // Configuration
     private var apiKey: String = ""
     private var endpoint: String = ""
-    private var environment: Environment = .production
+    private var environment: TracklessEnvironment = .production
     private var onError: (@Sendable (Error) -> Void)?
     private var flushIntervalSeconds: TimeInterval = 60
     private var debugLogging: Bool = false
@@ -170,7 +170,7 @@ actor TracklessState {
     // Components
     private var buffer = EventBuffer()
     private var circuitBreaker = CircuitBreaker()
-    private var context = EventContext(platform: "ios")
+    private var context = TracklessEventContext(platform: "ios")
     private var session = SessionManager()
     private var funnels = FunnelTracker()
 
@@ -217,7 +217,7 @@ actor TracklessState {
         }
     }
 
-    func recordEvent(type: EventType, name: String) async {
+    func recordEvent(type: TracklessEventType, name: String) async {
         guard canRecord() else { return }
         guard let normalized = normalizeName(name) else { return }
 
@@ -265,7 +265,7 @@ actor TracklessState {
         await checkFlushThreshold()
     }
 
-    func recordError(name: String, severity: ErrorSeverity, code: String?) async {
+    func recordError(name: String, severity: TracklessErrorSeverity, code: String?) async {
         guard canRecord() else { return }
         guard let normalized = normalizeName(name) else { return }
 

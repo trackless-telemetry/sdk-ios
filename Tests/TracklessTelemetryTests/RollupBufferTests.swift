@@ -4,7 +4,7 @@ import Testing
 @Suite("EventBuffer Tests")
 struct EventBufferTests {
 
-    private let testContext = EventContext(
+    private let testContext = TracklessEventContext(
         platform: "ios",
         osVersion: "17.0",
         deviceClass: "phone",
@@ -155,7 +155,7 @@ struct EventBufferTests {
         let size = await buffer.totalSize
         #expect(size == 10)
 
-        let payloads = await buffer.drain(environment: "production", context: EventContext(platform: "ios"))
+        let payloads = await buffer.drain(environment: "production", context: TracklessEventContext(platform: "ios"))
         let totalCount = payloads[0].events.reduce(0) { $0 + ($1.count ?? 1) }
         #expect(totalCount == 100)
     }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Event types supported by Trackless.
-public enum EventType: String, Codable, Sendable {
+public enum TracklessEventType: String, Codable, Sendable {
     case session
     case screen
     case feature
@@ -13,7 +13,7 @@ public enum EventType: String, Codable, Sendable {
 }
 
 /// Error severity levels.
-public enum ErrorSeverity: String, Codable, Sendable {
+public enum TracklessErrorSeverity: String, Codable, Sendable {
     case debug
     case info
     case warning
@@ -22,7 +22,7 @@ public enum ErrorSeverity: String, Codable, Sendable {
 }
 
 /// Environment for the SDK payload.
-public enum Environment: String, Codable, Sendable {
+public enum TracklessEnvironment: String, Codable, Sendable {
     case sandbox
     case production
 }
@@ -34,7 +34,7 @@ public enum Environment: String, Codable, Sendable {
 /// - NO device name or model string (Invariant 2)
 /// - NO IP-based geolocation (Invariant 4)
 /// - Locale derived from system Locale only
-public struct EventContext: Codable, Sendable, Equatable {
+public struct TracklessEventContext: Codable, Sendable, Equatable {
     public let platform: String
     public let osVersion: String?
     public let deviceClass: String?
@@ -64,7 +64,7 @@ public struct EventContext: Codable, Sendable, Equatable {
 
 /// A single event in the payload.
 public struct TracklessEvent: Codable, Sendable, Equatable {
-    public let type: EventType
+    public let type: TracklessEventType
     public let name: String
     public var count: Int?
     public var option: String?
@@ -72,12 +72,12 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
     public var stepIndex: Int?
     public var duration: Double?
     public var durations: [Double]?
-    public var severity: ErrorSeverity?
+    public var severity: TracklessErrorSeverity?
     public var code: String?
     public var properties: [String: String]?
 
     public init(
-        type: EventType,
+        type: TracklessEventType,
         name: String,
         count: Int? = nil,
         option: String? = nil,
@@ -85,7 +85,7 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
         stepIndex: Int? = nil,
         duration: Double? = nil,
         durations: [Double]? = nil,
-        severity: ErrorSeverity? = nil,
+        severity: TracklessErrorSeverity? = nil,
         code: String? = nil,
         properties: [String: String]? = nil
     ) {
@@ -104,13 +104,13 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
 }
 
 /// Full event payload sent to the ingest endpoint.
-public struct EventPayload: Codable, Sendable, Equatable {
+public struct TracklessEventPayload: Codable, Sendable, Equatable {
     public let date: String
     public let environment: String?
-    public let context: EventContext
+    public let context: TracklessEventContext
     public let events: [TracklessEvent]
 
-    public init(date: String, environment: String?, context: EventContext, events: [TracklessEvent]) {
+    public init(date: String, environment: String?, context: TracklessEventContext, events: [TracklessEvent]) {
         self.date = date
         self.environment = environment
         self.context = context
@@ -119,7 +119,7 @@ public struct EventPayload: Codable, Sendable, Equatable {
 }
 
 /// Response from the ingest endpoint.
-public struct IngestResponse: Codable, Sendable {
+public struct TracklessIngestResponse: Codable, Sendable {
     public let accepted: Int?
     public let rejected: Int?
 }

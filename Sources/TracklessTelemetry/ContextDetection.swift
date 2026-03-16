@@ -15,8 +15,8 @@ import UIKit
 enum ContextDetection {
 
     /// Detect coarse device context. Captured once at configure time.
-    static func detect() -> EventContext {
-        EventContext(
+    static func detect() -> TracklessEventContext {
+        TracklessEventContext(
             platform: "ios",
             osVersion: detectOsVersion(),
             deviceClass: detectDeviceClass(),
