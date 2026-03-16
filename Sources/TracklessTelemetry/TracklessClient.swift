@@ -376,7 +376,7 @@ actor TracklessState {
         await buffer.add(TracklessEvent(
             type: .session,
             name: "end",
-            count: result.depth,
+            stepIndex: result.depth,
             duration: Double(result.duration)
         ))
     }
@@ -414,6 +414,9 @@ actor TracklessState {
                     onError?(TracklessError.flushFailed(statusCode: result.status))
                 } else if result.status >= 400 {
                     let bodyText = Self.parseResponseSummary(result.body)
+                    if debugLogging {
+                        logger.warning("[Trackless] flush rejected — HTTP \(result.status) \(bodyText, privacy: .public)")
+                    }
                     onError?(TracklessError.flushRejected(statusCode: result.status, body: bodyText))
                 } else {
                     await circuitBreaker.recordSuccess()
