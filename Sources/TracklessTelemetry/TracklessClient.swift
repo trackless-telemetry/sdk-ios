@@ -223,6 +223,9 @@ actor TracklessState {
 
         await session.recordActivity()
         await buffer.add(TracklessEvent(type: type, name: normalized))
+        if debugLogging {
+            logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public)")
+        }
         await checkFlushThreshold()
     }
 
@@ -242,6 +245,9 @@ actor TracklessState {
             step: normalizedStep,
             stepIndex: stepIndex
         ))
+        if debugLogging {
+            logger.info("[Trackless] funnel — \(normalizedFunnel, privacy: .public) step=\(normalizedStep, privacy: .public) index=\(stepIndex)")
+        }
         await checkFlushThreshold()
     }
 
@@ -252,6 +258,9 @@ actor TracklessState {
 
         await session.recordActivity()
         await buffer.add(TracklessEvent(type: .selection, name: normalized, option: option))
+        if debugLogging {
+            logger.info("[Trackless] selection — \(normalized, privacy: .public) option=\(option, privacy: .public)")
+        }
         await checkFlushThreshold()
     }
 
@@ -262,6 +271,9 @@ actor TracklessState {
 
         await session.recordActivity()
         await buffer.add(TracklessEvent(type: .performance, name: normalized, duration: duration))
+        if debugLogging {
+            logger.info("[Trackless] performance — \(normalized, privacy: .public) duration=\(duration)ms")
+        }
         await checkFlushThreshold()
     }
 
@@ -276,6 +288,9 @@ actor TracklessState {
             severity: severity,
             code: code
         ))
+        if debugLogging {
+            logger.info("[Trackless] error — \(normalized, privacy: .public) severity=\(severity.rawValue, privacy: .public)")
+        }
         await checkFlushThreshold()
     }
 
@@ -290,6 +305,9 @@ actor TracklessState {
             name: normalized,
             properties: sanitized
         ))
+        if debugLogging {
+            logger.info("[Trackless] event — \(normalized, privacy: .public)")
+        }
         await checkFlushThreshold()
     }
 
