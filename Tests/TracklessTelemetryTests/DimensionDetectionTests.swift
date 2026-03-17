@@ -15,18 +15,15 @@ struct ContextDetectionTests {
 
     // MARK: - OS Version
 
-    @Test("OS version is major.minor format")
+    @Test("OS version is major version only")
     func osVersionExtracted() {
         let ctx = ContextDetection.detect()
         #expect(ctx.osVersion != nil)
         if let osVersion = ctx.osVersion {
-            let parts = osVersion.split(separator: ".")
-            #expect(parts.count == 2)
-            #expect(Int(parts[0]) != nil)
-            #expect(Int(parts[1]) != nil)
-            // Major should match ProcessInfo
+            #expect(Int(osVersion) != nil)
+            // Should match ProcessInfo major version
             let expectedMajor = String(ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
-            #expect(String(parts[0]) == expectedMajor)
+            #expect(osVersion == expectedMajor)
         }
     }
 
@@ -39,13 +36,16 @@ struct ContextDetectionTests {
         #expect(validValues.contains(ctx.deviceClass))
     }
 
-    // MARK: - Locale
+    // MARK: - Region
 
-    @Test("Locale is non-empty string or nil")
-    func localeDetected() {
+    @Test("Region is non-empty country code or nil")
+    func regionDetected() {
         let ctx = ContextDetection.detect()
-        if let locale = ctx.locale {
-            #expect(!locale.isEmpty)
+        if let region = ctx.region {
+            #expect(!region.isEmpty)
+            // Country codes are 2 uppercase letters
+            #expect(region.count == 2)
+            #expect(region == region.uppercased())
         }
     }
 
@@ -56,7 +56,7 @@ struct ContextDetectionTests {
         let ctx = ContextDetection.detect()
         #expect(ctx.platform == "ios")
         if let osVersion = ctx.osVersion {
-            #expect(osVersion.contains("."))
+            #expect(Int(osVersion) != nil)
         }
         if let dc = ctx.deviceClass {
             let allowed = ["phone", "tablet", "desktop"]

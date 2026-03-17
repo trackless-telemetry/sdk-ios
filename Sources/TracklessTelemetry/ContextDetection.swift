@@ -11,7 +11,7 @@ import UIKit
 /// - NO device name or model string (Invariant 2)
 /// - NO carrier info or telephony data
 /// - NO IP-based geolocation (Invariant 4)
-/// - Locale from system Locale only, never from network info
+/// - Region from system Locale only, never from network info
 enum ContextDetection {
 
     /// Detect coarse device context. Captured once at configure time.
@@ -20,7 +20,7 @@ enum ContextDetection {
             platform: "ios",
             osVersion: detectOsVersion(),
             deviceClass: detectDeviceClass(),
-            locale: detectLocale(),
+            region: detectRegion(),
             appVersion: detectAppVersion(),
             buildNumber: detectBuildNumber(),
             daysSinceInstall: detectDaysSinceInstall()
@@ -29,10 +29,10 @@ enum ContextDetection {
 
     // MARK: - Private
 
-    /// Extract major.minor OS version.
+    /// Extract major OS version only.
     private static func detectOsVersion() -> String? {
         let version = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(version.majorVersion).\(version.minorVersion)"
+        return "\(version.majorVersion)"
     }
 
     /// Detect device class from UIDevice.current.userInterfaceIdiom.
@@ -62,15 +62,14 @@ enum ContextDetection {
         #endif
     }
 
-    /// Extract locale from system Locale (e.g., "en-US").
+    /// Extract country code from system Locale (e.g., "US").
     /// Derived from system setting, NOT from IP address.
-    private static func detectLocale() -> String? {
+    private static func detectRegion() -> String? {
         if #available(iOS 16, macOS 13, *) {
-            return Locale.current.identifier(.bcp47)
+            return Locale.current.region?.identifier
         } else {
             // iOS 15 / macOS 12 fallback
-            let id = Locale.current.identifier
-            return id.isEmpty ? nil : id.replacingOccurrences(of: "_", with: "-")
+            return Locale.current.regionCode
         }
     }
 

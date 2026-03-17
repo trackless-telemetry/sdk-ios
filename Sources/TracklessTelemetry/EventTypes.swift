@@ -32,12 +32,12 @@ public enum TracklessEnvironment: String, Codable, Sendable {
 /// - NO IDFA or IDFV (Invariant 1)
 /// - NO device name or model string (Invariant 2)
 /// - NO IP-based geolocation (Invariant 4)
-/// - Locale derived from system Locale only
+/// - Region derived from system Locale only
 public struct TracklessEventContext: Codable, Sendable, Equatable {
     public let platform: String
     public let osVersion: String?
     public let deviceClass: String?
-    public let locale: String?
+    public let region: String?
     public let appVersion: String?
     public let buildNumber: String?
     public let daysSinceInstall: Int?
@@ -46,7 +46,7 @@ public struct TracklessEventContext: Codable, Sendable, Equatable {
         platform: String = "ios",
         osVersion: String? = nil,
         deviceClass: String? = nil,
-        locale: String? = nil,
+        region: String? = nil,
         appVersion: String? = nil,
         buildNumber: String? = nil,
         daysSinceInstall: Int? = nil
@@ -54,7 +54,7 @@ public struct TracklessEventContext: Codable, Sendable, Equatable {
         self.platform = platform
         self.osVersion = osVersion
         self.deviceClass = deviceClass
-        self.locale = locale
+        self.region = region
         self.appVersion = appVersion
         self.buildNumber = buildNumber
         self.daysSinceInstall = daysSinceInstall

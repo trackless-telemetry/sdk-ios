@@ -6,9 +6,9 @@ struct EventBufferTests {
 
     private let testContext = TracklessEventContext(
         platform: "ios",
-        osVersion: "17.0",
+        osVersion: "17",
         deviceClass: "phone",
-        locale: "en-US"
+        region: "US"
     )
 
     // MARK: - Single Event

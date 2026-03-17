@@ -90,9 +90,20 @@ Trackless.configure(TracklessConfig(
     environment: .sandbox,                 // Optional — auto-detected from build config
     enabled: true,                         // Optional — set false to disable all recording
     onError: { error in print(error) },    // Optional — error callback for debugging
-    flushIntervalSeconds: 60               // Optional — how often buffered events are sent
+    flushIntervalSeconds: 60,              // Optional — how often buffered events are sent
+    debugLogging: true                     // Optional — enable debug logging via os.Logger
 ))
 ```
+
+| Option                  | Type                                  | Default                                | Description                                   |
+| ----------------------- | ------------------------------------- | -------------------------------------- | --------------------------------------------- |
+| `apiKey`                | `String`                              | **required**                           | API key with `tl_` prefix                     |
+| `endpoint`              | `String`                              | `"https://api.tracklesstelemetry.com"` | Ingest endpoint URL                           |
+| `environment`           | `TracklessEnvironment?`               | auto-detected                          | `.sandbox` or `.production`                   |
+| `enabled`               | `Bool`                                | `true`                                 | Set `false` to disable all recording          |
+| `onError`               | `(@Sendable (Error) -> Void)?`        | `nil`                                  | Error callback for debugging                  |
+| `flushIntervalSeconds`  | `TimeInterval`                        | `60`                                   | How often buffered events are sent (seconds)  |
+| `debugLogging`          | `Bool`                                | `false`                                | Enable debug logging via os.Logger            |
 
 **Environment auto-detection:** In `DEBUG` builds, environment defaults to `.sandbox`. In release builds, it defaults to `.production`. Override by passing `environment:` explicitly.
 
