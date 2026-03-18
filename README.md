@@ -24,7 +24,7 @@ Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "1.0.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.1.8")
 ]
 ```
 
@@ -48,10 +48,11 @@ Trackless.configure(TracklessConfig(
 ))
 
 // Record events anywhere in your app
-Trackless.screen("home")
+Trackless.view("home")
+Trackless.view("settings", detail: "profile")
 Trackless.feature("export_clicked")
+Trackless.feature("export_clicked", detail: "csv")
 Trackless.funnel("checkout", stepIndex: 0, step: "view_cart")
-Trackless.selection("theme", option: "dark")
 Trackless.performance("api_fetch", duration: 0.342)
 Trackless.error("payment_failed", severity: .error, code: "DECLINED")
 ```
@@ -81,10 +82,9 @@ All methods are static, non-blocking, non-throwing, and safe to call from any th
 
 | Method | Description |
 |--------|-------------|
-| `Trackless.screen(_ name: String)` | Screen/page view |
-| `Trackless.feature(_ name: String)` | Feature interaction |
+| `Trackless.view(_ name: String, detail: String?)` | View event (optional detail) |
+| `Trackless.feature(_ name: String, detail: String?)` | Feature interaction (optional detail) |
 | `Trackless.funnel(_ funnelName: String, stepIndex: Int, step: String)` | Funnel step progression |
-| `Trackless.selection(_ name: String, option: String)` | Choice from a set of options |
 | `Trackless.performance(_ name: String, duration: Double)` | Timing measurement (seconds) |
 | `Trackless.error(_ name: String, severity: ErrorSeverity, code: String?)` | Application error |
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// Thread-safe in-memory event buffer with client-side rollup.
 ///
-/// Count-aggregatable events (feature, screen, error, selection, event)
+/// Count-aggregatable events (feature, view, error, event)
 /// are rolled up by key. Performance events append to durations[].
 /// Non-aggregatable events (funnel, session start/end) are appended individually.
 ///
@@ -145,12 +145,10 @@ public actor EventBuffer {
     /// Build the rollup key for count-aggregatable events.
     private func rollupKey(_ event: TracklessEvent) -> String {
         switch event.type {
-        case .feature, .screen:
-            return "\(event.type.rawValue)|\(event.name)"
+        case .feature, .view:
+            return "\(event.type.rawValue)|\(event.name)|\(event.detail ?? "")"
         case .error:
             return "\(event.type.rawValue)|\(event.name)|\(event.severity?.rawValue ?? "")|\(event.code ?? "")"
-        case .selection:
-            return "\(event.type.rawValue)|\(event.name)|\(event.option ?? "")"
         case .performance:
             return "\(event.type.rawValue)|\(event.name)"
         case .session:

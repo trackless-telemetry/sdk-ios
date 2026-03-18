@@ -3,10 +3,9 @@ import Foundation
 /// Event types supported by Trackless.
 public enum TracklessEventType: String, Codable, Sendable {
     case session
-    case screen
+    case view
     case feature
     case funnel
-    case selection
     case performance
     case error
 }
@@ -66,7 +65,7 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
     public let type: TracklessEventType
     public let name: String
     public var count: Int?
-    public var option: String?
+    public var detail: String?
     public var step: String?
     public var stepIndex: Int?
     public var duration: Double?
@@ -78,7 +77,7 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
         type: TracklessEventType,
         name: String,
         count: Int? = nil,
-        option: String? = nil,
+        detail: String? = nil,
         step: String? = nil,
         stepIndex: Int? = nil,
         duration: Double? = nil,
@@ -89,7 +88,7 @@ public struct TracklessEvent: Codable, Sendable, Equatable {
         self.type = type
         self.name = name
         self.count = count
-        self.option = option
+        self.detail = detail
         self.step = step
         self.stepIndex = stepIndex
         self.duration = duration

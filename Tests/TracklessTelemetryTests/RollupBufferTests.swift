@@ -111,7 +111,7 @@ struct EventBufferTests {
         let buffer = EventBuffer()
         await buffer.add(TracklessEvent(type: .feature, name: "settings_opened"))
         await buffer.add(TracklessEvent(type: .feature, name: "settings_opened"))
-        await buffer.add(TracklessEvent(type: .screen, name: "home"))
+        await buffer.add(TracklessEvent(type: .view, name: "home"))
 
         let payloads = await buffer.drain(environment: "sandbox", context: testContext)
         #expect(payloads.count == 1)
@@ -178,9 +178,61 @@ struct EventBufferTests {
     func differentTypesSeparate() async {
         let buffer = EventBuffer()
         await buffer.add(TracklessEvent(type: .feature, name: "export"))
-        await buffer.add(TracklessEvent(type: .screen, name: "export"))
+        await buffer.add(TracklessEvent(type: .view, name: "export"))
 
         let size = await buffer.totalSize
         #expect(size == 2)
+    }
+
+    // MARK: - Detail in Rollup Key
+
+    @Test("View events with different details create separate entries")
+    func viewDetailSeparateEntries() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .view, name: "settings"))
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "profile"))
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "notifications"))
+
+        let size = await buffer.totalSize
+        #expect(size == 3)
+    }
+
+    @Test("View events with same detail aggregate count")
+    func viewDetailAggregates() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "profile"))
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "profile"))
+
+        let size = await buffer.totalSize
+        #expect(size == 1)
+
+        let payloads = await buffer.drain(environment: "production", context: testContext)
+        #expect(payloads[0].events[0].count == 2)
+        #expect(payloads[0].events[0].detail == "profile")
+    }
+
+    @Test("Feature events with different details create separate entries")
+    func featureDetailSeparateEntries() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .feature, name: "export"))
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "csv"))
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "pdf"))
+
+        let size = await buffer.totalSize
+        #expect(size == 3)
+    }
+
+    @Test("Feature events with same detail aggregate count")
+    func featureDetailAggregates() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "csv"))
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "csv"))
+
+        let size = await buffer.totalSize
+        #expect(size == 1)
+
+        let payloads = await buffer.drain(environment: "production", context: testContext)
+        #expect(payloads[0].events[0].count == 2)
+        #expect(payloads[0].events[0].detail == "csv")
     }
 }

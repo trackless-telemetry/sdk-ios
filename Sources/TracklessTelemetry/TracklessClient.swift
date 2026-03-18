@@ -49,7 +49,7 @@ public struct TracklessConfig: Sendable {
 ///     endpoint: "https://api.tracklesstelemetry.com"
 /// ))
 ///
-/// Trackless.screen("Home")
+/// Trackless.view("Home")
 /// Trackless.feature("export_clicked")
 /// ```
 public final class Trackless: Sendable {
@@ -69,17 +69,17 @@ public final class Trackless: Sendable {
 
     // MARK: - Event Recording
 
-    /// Record a screen view.
-    public static func screen(_ name: String) {
+    /// Record a view event.
+    public static func view(_ name: String, detail: String? = nil) {
         Task {
-            await state.recordEvent(type: .screen, name: name)
+            await state.recordEvent(type: .view, name: name, detail: detail)
         }
     }
 
     /// Record a feature usage event.
-    public static func feature(_ name: String) {
+    public static func feature(_ name: String, detail: String? = nil) {
         Task {
-            await state.recordEvent(type: .feature, name: name)
+            await state.recordEvent(type: .feature, name: name, detail: detail)
         }
     }
 
@@ -87,13 +87,6 @@ public final class Trackless: Sendable {
     public static func funnel(_ funnelName: String, stepIndex: Int, step stepName: String) {
         Task {
             await state.recordFunnel(funnelName: funnelName, stepIndex: stepIndex, stepName: stepName)
-        }
-    }
-
-    /// Record a selection event (e.g., theme preference, language choice).
-    public static func selection(_ name: String, option: String) {
-        Task {
-            await state.recordSelection(name: name, option: option)
         }
     }
 
@@ -210,7 +203,7 @@ actor TracklessState {
         }
     }
 
-    func recordEvent(type: TracklessEventType, name: String) async {
+    func recordEvent(type: TracklessEventType, name: String, detail: String? = nil) async {
         guard canRecord() else {
             debugDrop("not recording", type: type.rawValue, name: name)
             return
@@ -218,9 +211,14 @@ actor TracklessState {
         guard let normalized = normalizeName(name) else { return }
 
         await session.recordActivity()
-        await buffer.add(TracklessEvent(type: type, name: normalized))
+        let eventDetail = (detail?.isEmpty == false) ? detail : nil
+        await buffer.add(TracklessEvent(type: type, name: normalized, detail: eventDetail))
         if debugLogging {
-            logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public)")
+            if let eventDetail {
+                logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public) detail=\(eventDetail, privacy: .public)")
+            } else {
+                logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public)")
+            }
         }
         await checkFlushThreshold()
     }
@@ -248,25 +246,6 @@ actor TracklessState {
         ))
         if debugLogging {
             logger.info("[Trackless] funnel — \(normalizedFunnel, privacy: .public) step=\(normalizedStep, privacy: .public) index=\(stepIndex)")
-        }
-        await checkFlushThreshold()
-    }
-
-    func recordSelection(name: String, option: String) async {
-        guard canRecord() else {
-            debugDrop("not recording", type: "selection", name: name)
-            return
-        }
-        guard let normalized = normalizeName(name) else { return }
-        guard !option.isEmpty else {
-            debugDrop("empty option", type: "selection", name: name)
-            return
-        }
-
-        await session.recordActivity()
-        await buffer.add(TracklessEvent(type: .selection, name: normalized, option: option))
-        if debugLogging {
-            logger.info("[Trackless] selection — \(normalized, privacy: .public) option=\(option, privacy: .public)")
         }
         await checkFlushThreshold()
     }

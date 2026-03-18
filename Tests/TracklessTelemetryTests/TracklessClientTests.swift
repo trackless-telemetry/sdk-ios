@@ -21,17 +21,39 @@ struct TracklessClientTests {
         #expect(payloads[0].events[0].count == 3)
     }
 
-    @Test("EventBuffer: screen events aggregate count")
-    func screenEventsAggregate() async {
+    @Test("EventBuffer: view events aggregate count")
+    func viewEventsAggregate() async {
         let buffer = EventBuffer()
-        await buffer.add(TracklessEvent(type: .screen, name: "home"))
-        await buffer.add(TracklessEvent(type: .screen, name: "home"))
+        await buffer.add(TracklessEvent(type: .view, name: "home"))
+        await buffer.add(TracklessEvent(type: .view, name: "home"))
 
         let payloads = await buffer.drain(
             environment: "production",
             context: TracklessEventContext(platform: "ios")
         )
         #expect(payloads[0].events[0].count == 2)
+    }
+
+    @Test("EventBuffer: view events with detail aggregate separately")
+    func viewEventsWithDetailAggregate() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "profile"))
+        await buffer.add(TracklessEvent(type: .view, name: "settings", detail: "profile"))
+        await buffer.add(TracklessEvent(type: .view, name: "settings"))
+
+        let size = await buffer.totalSize
+        #expect(size == 2)
+    }
+
+    @Test("EventBuffer: feature events with detail aggregate separately")
+    func featureEventsWithDetailAggregate() async {
+        let buffer = EventBuffer()
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "csv"))
+        await buffer.add(TracklessEvent(type: .feature, name: "export", detail: "csv"))
+        await buffer.add(TracklessEvent(type: .feature, name: "export"))
+
+        let size = await buffer.totalSize
+        #expect(size == 2)
     }
 
     @Test("EventBuffer: error events aggregate by severity+code")
@@ -46,15 +68,21 @@ struct TracklessClientTests {
         #expect(size == 2)
     }
 
-    @Test("EventBuffer: selection events aggregate by option")
-    func selectionEventsAggregate() async {
+    @Test("EventBuffer: view events with nil detail use empty string in rollup key")
+    func viewEventsNilDetail() async {
         let buffer = EventBuffer()
-        await buffer.add(TracklessEvent(type: .selection, name: "theme", option: "dark"))
-        await buffer.add(TracklessEvent(type: .selection, name: "theme", option: "dark"))
-        await buffer.add(TracklessEvent(type: .selection, name: "theme", option: "light"))
+        await buffer.add(TracklessEvent(type: .view, name: "home"))
+        await buffer.add(TracklessEvent(type: .view, name: "home"))
 
         let size = await buffer.totalSize
-        #expect(size == 2)
+        #expect(size == 1)
+
+        let payloads = await buffer.drain(
+            environment: "production",
+            context: TracklessEventContext(platform: "ios")
+        )
+        #expect(payloads[0].events[0].count == 2)
+        #expect(payloads[0].events[0].detail == nil)
     }
 
     // MARK: - Session Manager
@@ -134,7 +162,7 @@ struct TracklessClientTests {
             context: TracklessEventContext(platform: "ios", osVersion: "17.0"),
             events: [
                 TracklessEvent(type: .feature, name: "export_clicked", count: 3),
-                TracklessEvent(type: .screen, name: "home", count: 1),
+                TracklessEvent(type: .view, name: "home", count: 1),
             ]
         )
 
