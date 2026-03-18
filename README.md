@@ -50,7 +50,7 @@ Trackless.configure(TracklessConfig(
 // Record events anywhere in your app
 Trackless.screen("home")
 Trackless.feature("export_clicked")
-Trackless.funnel("checkout", step: "view_cart")
+Trackless.funnel("checkout", stepIndex: 0, step: "view_cart")
 Trackless.selection("theme", option: "dark")
 Trackless.performance("api_fetch", duration: 0.342)
 Trackless.error("payment_failed", severity: .error, code: "DECLINED")
@@ -83,7 +83,7 @@ All methods are static, non-blocking, non-throwing, and safe to call from any th
 |--------|-------------|
 | `Trackless.screen(_ name: String)` | Screen/page view |
 | `Trackless.feature(_ name: String)` | Feature interaction |
-| `Trackless.funnel(_ funnelName: String, step: String)` | Funnel step progression |
+| `Trackless.funnel(_ funnelName: String, stepIndex: Int, step: String)` | Funnel step progression |
 | `Trackless.selection(_ name: String, option: String)` | Choice from a set of options |
 | `Trackless.performance(_ name: String, duration: Double)` | Timing measurement (seconds) |
 | `Trackless.error(_ name: String, severity: ErrorSeverity, code: String?)` | Application error |

@@ -201,28 +201,28 @@ Button("Export Data") {
 
 ### Funnel Steps
 
-Track progression through multi-step flows:
+Track progression through multi-step flows. Each step has a developer-defined index (0-based) that determines its position in the funnel:
 
 ```swift
 // Checkout funnel
-Trackless.funnel("checkout", step: "view_cart")
-Trackless.funnel("checkout", step: "enter_shipping")
-Trackless.funnel("checkout", step: "enter_payment")
-Trackless.funnel("checkout", step: "confirm_order")
-Trackless.funnel("checkout", step: "order_complete")
+Trackless.funnel("checkout", stepIndex: 0, step: "view_cart")
+Trackless.funnel("checkout", stepIndex: 1, step: "enter_shipping")
+Trackless.funnel("checkout", stepIndex: 2, step: "enter_payment")
+Trackless.funnel("checkout", stepIndex: 3, step: "confirm_order")
+Trackless.funnel("checkout", stepIndex: 4, step: "order_complete")
 
 // Onboarding funnel
-Trackless.funnel("onboarding", step: "welcome")
-Trackless.funnel("onboarding", step: "create_account")
-Trackless.funnel("onboarding", step: "verify_email")
-Trackless.funnel("onboarding", step: "complete")
+Trackless.funnel("onboarding", stepIndex: 0, step: "welcome")
+Trackless.funnel("onboarding", stepIndex: 1, step: "create_account")
+Trackless.funnel("onboarding", stepIndex: 2, step: "verify_email")
+Trackless.funnel("onboarding", stepIndex: 3, step: "complete")
 ```
 
 **When to use:** Checkout flows, onboarding wizards, multi-step forms — any process where you want to measure drop-off between steps.
 
 **Rules:**
-- Step names are deduplicated per session — calling the same step twice is a no-op
-- Step index is assigned automatically based on order of first occurrence
+- Step index is developer-defined (0-based) and determines the order of steps in funnel charts
+- Steps are deduplicated per session — calling the same step index twice is a no-op
 - Funnel state resets when the session ends
 
 ### Selections
@@ -442,24 +442,24 @@ struct CheckoutFlow: View {
             switch step {
             case .cart:
                 CartSummary(onContinue: {
-                    Trackless.funnel("checkout", step: "view_cart")
+                    Trackless.funnel("checkout", stepIndex: 0, step: "view_cart")
                     step = .shipping
                 })
             case .shipping:
                 ShippingForm(onSelect: { method in
                     Trackless.selection("shipping_method", option: method)
-                    Trackless.funnel("checkout", step: "enter_shipping")
+                    Trackless.funnel("checkout", stepIndex: 1, step: "enter_shipping")
                     step = .payment
                 })
             case .payment:
                 PaymentForm(onSubmit: {
-                    Trackless.funnel("checkout", step: "enter_payment")
+                    Trackless.funnel("checkout", stepIndex: 2, step: "enter_payment")
                     submitOrder()
                 })
             case .confirmation:
                 OrderConfirmation()
                     .onAppear {
-                        Trackless.funnel("checkout", step: "order_complete")
+                        Trackless.funnel("checkout", stepIndex: 3, step: "order_complete")
                     }
             }
         }

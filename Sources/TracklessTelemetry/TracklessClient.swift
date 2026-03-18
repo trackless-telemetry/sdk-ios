@@ -84,9 +84,9 @@ public final class Trackless: Sendable {
     }
 
     /// Record a funnel step.
-    public static func funnel(_ funnelName: String, step stepName: String) {
+    public static func funnel(_ funnelName: String, stepIndex: Int, step stepName: String) {
         Task {
-            await state.recordFunnel(funnelName: funnelName, stepName: stepName)
+            await state.recordFunnel(funnelName: funnelName, stepIndex: stepIndex, stepName: stepName)
         }
     }
 
@@ -225,15 +225,16 @@ actor TracklessState {
         await checkFlushThreshold()
     }
 
-    func recordFunnel(funnelName: String, stepName: String) async {
+    func recordFunnel(funnelName: String, stepIndex: Int, stepName: String) async {
         guard canRecord() else {
             debugDrop("not recording", type: "funnel", name: funnelName)
             return
         }
+        guard stepIndex >= 0 else { return }
         guard let normalizedFunnel = normalizeName(funnelName),
               let normalizedStep = normalizeName(stepName) else { return }
 
-        guard let stepIndex = await funnels.step(funnelName: normalizedFunnel, stepName: normalizedStep) else {
+        guard await funnels.step(funnelName: normalizedFunnel, stepIndex: stepIndex) else {
             debugDrop("duplicate funnel step", type: "funnel", name: "\(normalizedFunnel).\(normalizedStep)")
             return
         }

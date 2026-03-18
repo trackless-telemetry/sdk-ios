@@ -93,35 +93,35 @@ struct TracklessClientTests {
 
     // MARK: - Funnel Tracker
 
-    @Test("FunnelTracker assigns sequential stepIndex")
-    func funnelSequentialIndex() async {
+    @Test("FunnelTracker accepts explicit step indices")
+    func funnelExplicitIndex() async {
         let tracker = FunnelTracker()
-        let step0 = await tracker.step(funnelName: "checkout", stepName: "cart")
-        let step1 = await tracker.step(funnelName: "checkout", stepName: "payment")
-        let step2 = await tracker.step(funnelName: "checkout", stepName: "confirm")
-        #expect(step0 == 0)
-        #expect(step1 == 1)
-        #expect(step2 == 2)
+        let step0 = await tracker.step(funnelName: "checkout", stepIndex: 0)
+        let step1 = await tracker.step(funnelName: "checkout", stepIndex: 1)
+        let step2 = await tracker.step(funnelName: "checkout", stepIndex: 2)
+        #expect(step0 == true)
+        #expect(step1 == true)
+        #expect(step2 == true)
     }
 
-    @Test("FunnelTracker deduplicates repeated steps")
+    @Test("FunnelTracker deduplicates repeated step indices")
     func funnelDedup() async {
         let tracker = FunnelTracker()
-        let first = await tracker.step(funnelName: "checkout", stepName: "cart")
-        let second = await tracker.step(funnelName: "checkout", stepName: "cart")
-        #expect(first == 0)
-        #expect(second == nil)
+        let first = await tracker.step(funnelName: "checkout", stepIndex: 0)
+        let second = await tracker.step(funnelName: "checkout", stepIndex: 0)
+        #expect(first == true)
+        #expect(second == false)
     }
 
     @Test("FunnelTracker tracks independent funnels")
     func funnelIndependent() async {
         let tracker = FunnelTracker()
-        let a0 = await tracker.step(funnelName: "checkout", stepName: "cart")
-        let b0 = await tracker.step(funnelName: "onboarding", stepName: "welcome")
-        let a1 = await tracker.step(funnelName: "checkout", stepName: "payment")
-        #expect(a0 == 0)
-        #expect(b0 == 0)
-        #expect(a1 == 1)
+        let a0 = await tracker.step(funnelName: "checkout", stepIndex: 0)
+        let b0 = await tracker.step(funnelName: "onboarding", stepIndex: 0)
+        let a1 = await tracker.step(funnelName: "checkout", stepIndex: 1)
+        #expect(a0 == true)
+        #expect(b0 == true)
+        #expect(a1 == true)
     }
 
     // MARK: - Event Payload Structure

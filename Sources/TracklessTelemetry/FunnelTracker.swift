@@ -1,30 +1,29 @@
 import Foundation
 
-/// In-memory funnel step tracking per session.
+/// In-memory funnel step deduplication per session.
 ///
-/// Tracks which steps have been completed per funnel name within a session.
-/// Provides deduplication and automatic stepIndex assignment.
+/// Tracks which step indices have been recorded per funnel name within a session.
+/// Prevents the same step from being counted twice in one session.
 /// Cleared on session end.
 public actor FunnelTracker {
 
-    /// Map of funnelName -> list of completed step names (in order).
-    private var funnels: [String: [String]] = [:]
+    /// Map of funnelName -> set of completed step indices.
+    private var funnels: [String: Set<Int>] = [:]
 
     public init() {}
 
-    /// Record a funnel step.
+    /// Check and record a funnel step for deduplication.
     ///
-    /// - Returns: stepIndex if the step was recorded, or nil if it was a duplicate.
-    public func step(funnelName: String, stepName: String) -> Int? {
-        var steps = funnels[funnelName] ?? []
+    /// - Returns: true if the step was newly recorded, false if it was a duplicate.
+    public func step(funnelName: String, stepIndex: Int) -> Bool {
+        var steps = funnels[funnelName] ?? Set<Int>()
 
-        // Dedup — if this step was already completed, skip
-        if steps.contains(stepName) { return nil }
+        // Dedup — if this step index was already recorded, skip
+        if steps.contains(stepIndex) { return false }
 
-        let stepIndex = steps.count
-        steps.append(stepName)
+        steps.insert(stepIndex)
         funnels[funnelName] = steps
-        return stepIndex
+        return true
     }
 
     /// Clear all funnel state (call on session end).
