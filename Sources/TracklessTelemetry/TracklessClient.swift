@@ -4,36 +4,16 @@ import os
 import UIKit
 #endif
 
-/// Configuration for the Trackless SDK.
-public struct TracklessConfig: Sendable {
-    /// Default production ingest endpoint.
-    public static let defaultEndpoint = "https://api.tracklesstelemetry.com"
-
-    public let apiKey: String
-    public let endpoint: String
-    public let environment: TracklessEnvironment?
-    public let enabled: Bool
-    public let onError: (@Sendable (Error) -> Void)?
-    public let flushIntervalSeconds: TimeInterval
-    public let debugLogging: Bool
-
-    public init(
-        apiKey: String,
-        endpoint: String = TracklessConfig.defaultEndpoint,
-        environment: TracklessEnvironment? = nil,
-        enabled: Bool = true,
-        onError: (@Sendable (Error) -> Void)? = nil,
-        flushIntervalSeconds: TimeInterval = 60,
-        debugLogging: Bool = false
-    ) {
-        self.apiKey = apiKey
-        self.endpoint = endpoint
-        self.environment = environment
-        self.enabled = enabled
-        self.onError = onError
-        self.flushIntervalSeconds = flushIntervalSeconds
-        self.debugLogging = debugLogging
-    }
+/// Internal configuration container for the Trackless SDK.
+struct TracklessConfig: Sendable {
+    let apiKey: String
+    let endpoint: String
+    let environment: TracklessEnvironment?
+    let enabled: Bool
+    let onError: (@Sendable (Error) -> Void)?
+    let flushIntervalSeconds: TimeInterval
+    let debugLogging: Bool
+    let suppressWarnings: Bool
 }
 
 /// Trackless — privacy-first analytics SDK for iOS.
@@ -44,24 +24,50 @@ public struct TracklessConfig: Sendable {
 ///
 /// Usage:
 /// ```swift
-/// Trackless.configure(TracklessConfig(
-///     apiKey: "tl_xxxxxxxxxxxxxxxx",
-///     endpoint: "https://api.tracklesstelemetry.com"
-/// ))
+/// Trackless.configure(apiKey: "tl_xxxxxxxxxxxxxxxx")
 ///
 /// Trackless.view("Home")
 /// Trackless.feature("export_clicked")
 /// ```
 public final class Trackless: Sendable {
 
+    /// Default production ingest endpoint.
+    public static let defaultEndpoint = "https://api.tracklesstelemetry.com"
+
     // MARK: - Singleton State
 
     private static let state = TracklessState()
 
+    // MARK: - State
+
+    /// Whether the SDK has been configured and is ready to record events.
+    public static var isConfigured: Bool {
+        get async { await state.isConfigured }
+    }
+
     // MARK: - Configure
 
     /// Configure the SDK and start a new session.
-    public static func configure(_ config: TracklessConfig) {
+    public static func configure(
+        apiKey: String,
+        endpoint: String = Trackless.defaultEndpoint,
+        environment: TracklessEnvironment? = nil,
+        enabled: Bool = true,
+        onError: (@Sendable (Error) -> Void)? = nil,
+        flushIntervalSeconds: TimeInterval = 60,
+        debugLogging: Bool = false,
+        suppressWarnings: Bool = false
+    ) {
+        let config = TracklessConfig(
+            apiKey: apiKey,
+            endpoint: endpoint,
+            environment: environment,
+            enabled: enabled,
+            onError: onError,
+            flushIntervalSeconds: flushIntervalSeconds,
+            debugLogging: debugLogging,
+            suppressWarnings: suppressWarnings
+        )
         Task {
             await state.configure(config)
         }
@@ -91,9 +97,9 @@ public final class Trackless: Sendable {
     }
 
     /// Record a performance measurement.
-    public static func performance(_ name: String, duration: Double) {
+    public static func performance(_ name: String, durationSeconds: Double, thresholdSeconds: Double? = nil) {
         Task {
-            await state.recordPerformance(name: name, duration: duration)
+            await state.recordPerformance(name: name, durationSeconds: durationSeconds, thresholdSeconds: thresholdSeconds)
         }
     }
 
@@ -112,9 +118,9 @@ public final class Trackless: Sendable {
     }
 
     /// Toggle event recording. Disabling discards buffered data.
-    public static func setEnabled(_ enabled: Bool) {
+    public static func setEnabled(_ isEnabled: Bool) {
         Task {
-            await state.setEnabled(enabled)
+            await state.setEnabled(isEnabled)
         }
     }
 
@@ -147,6 +153,7 @@ actor TracklessState {
     private var onError: (@Sendable (Error) -> Void)?
     private var flushIntervalSeconds: TimeInterval = 60
     private var debugLogging: Bool = false
+    private var suppressWarnings: Bool = false
 
     // State flags
     private var enabled: Bool = false
@@ -169,6 +176,10 @@ actor TracklessState {
     /// Buffer flush threshold
     private let bufferFlushThreshold = 100
 
+    var isConfigured: Bool {
+        configured && !destroyed
+    }
+
     func configure(_ config: TracklessConfig) async {
         // Clean up previous state
         timerState.cancelTimer()
@@ -182,6 +193,7 @@ actor TracklessState {
         onError = config.onError
         flushIntervalSeconds = config.flushIntervalSeconds
         debugLogging = config.debugLogging
+        suppressWarnings = config.suppressWarnings
         enabled = config.enabled
         destroyed = false
         configured = true
@@ -199,19 +211,22 @@ actor TracklessState {
         if enabled {
             await startNewSession()
             startPeriodicFlush()
-            addBackgroundObserver()
+            addLifecycleObservers()
         }
     }
 
     func recordEvent(type: TracklessEventType, name: String, detail: String? = nil) async {
         guard canRecord() else {
-            debugDrop("not recording", type: type.rawValue, name: name)
+            warnDrop("not recording", type: type.rawValue, name: name)
             return
         }
         guard let normalized = normalizeName(name) else { return }
 
+        let rawDetail = (detail?.isEmpty == false) ? detail : nil
+        if let rawDetail, rawDetail.count > FeatureValidator.maxLength { return }
+
         await session.recordActivity()
-        let eventDetail = (detail?.isEmpty == false) ? detail : nil
+        let eventDetail = rawDetail.map { FeatureValidator.stripPII($0) }
         await buffer.add(TracklessEvent(type: type, name: normalized, detail: eventDetail))
         if debugLogging {
             if let eventDetail {
@@ -225,7 +240,7 @@ actor TracklessState {
 
     func recordFunnel(funnelName: String, stepIndex: Int, stepName: String) async {
         guard canRecord() else {
-            debugDrop("not recording", type: "funnel", name: funnelName)
+            warnDrop("not recording", type: "funnel", name: funnelName)
             return
         }
         guard stepIndex >= 0 else { return }
@@ -233,7 +248,7 @@ actor TracklessState {
               let normalizedStep = normalizeName(stepName) else { return }
 
         guard await funnels.step(funnelName: normalizedFunnel, stepIndex: stepIndex) else {
-            debugDrop("duplicate funnel step", type: "funnel", name: "\(normalizedFunnel).\(normalizedStep)")
+            warnDrop("duplicate funnel step", type: "funnel", name: "\(normalizedFunnel).\(normalizedStep)")
             return
         }
 
@@ -250,38 +265,42 @@ actor TracklessState {
         await checkFlushThreshold()
     }
 
-    func recordPerformance(name: String, duration: Double) async {
+    func recordPerformance(name: String, durationSeconds: Double, thresholdSeconds: Double? = nil) async {
         guard canRecord() else {
-            debugDrop("not recording", type: "performance", name: name)
+            warnDrop("not recording", type: "performance", name: name)
             return
         }
         guard let normalized = normalizeName(name) else { return }
-        guard duration >= 0 else {
-            debugDrop("negative duration (\(duration))", type: "performance", name: name)
+        guard durationSeconds >= 0 else {
+            warnDrop("negative duration (\(durationSeconds))", type: "performance", name: name)
             return
         }
+        if let thresholdSeconds, thresholdSeconds <= 0 { return }
 
         await session.recordActivity()
-        await buffer.add(TracklessEvent(type: .performance, name: normalized, duration: duration))
+        await buffer.add(TracklessEvent(type: .performance, name: normalized, duration: durationSeconds, threshold: thresholdSeconds))
         if debugLogging {
-            logger.info("[Trackless] performance — \(normalized, privacy: .public) duration=\(duration)ms")
+            let thresholdStr = thresholdSeconds.map { " threshold=\($0)s" } ?? ""
+            logger.info("[Trackless] performance — \(normalized, privacy: .public) duration=\(durationSeconds)s\(thresholdStr, privacy: .public)")
         }
         await checkFlushThreshold()
     }
 
     func recordError(name: String, severity: TracklessErrorSeverity, code: String?) async {
         guard canRecord() else {
-            debugDrop("not recording", type: "error", name: name)
+            warnDrop("not recording", type: "error", name: name)
             return
         }
         guard let normalized = normalizeName(name) else { return }
+        if let code, code.count > FeatureValidator.maxLength { return }
 
+        let strippedCode = code.map { FeatureValidator.stripPII($0) }
         await session.recordActivity()
         await buffer.add(TracklessEvent(
             type: .error,
             name: normalized,
             severity: severity,
-            code: code
+            code: strippedCode
         ))
         if debugLogging {
             logger.info("[Trackless] error — \(normalized, privacy: .public) severity=\(severity.rawValue, privacy: .public)")
@@ -303,7 +322,7 @@ actor TracklessState {
             #endif
         } else if !destroyed && configured {
             startPeriodicFlush()
-            addBackgroundObserver()
+            addLifecycleObservers()
         }
     }
 
@@ -328,18 +347,21 @@ actor TracklessState {
         enabled && !destroyed && configured
     }
 
-    private func debugDrop(_ reason: String, type: String, name: String) {
-        guard debugLogging else { return }
+    private func warn(_ message: String) {
+        guard !suppressWarnings else { return }
+        logger.warning("[Trackless] \(message, privacy: .public)")
+    }
+
+    private func warnDrop(_ reason: String, type: String, name: String) {
+        guard !suppressWarnings else { return }
         logger.warning("[Trackless] dropped \(type, privacy: .public) \"\(name, privacy: .public)\" — \(reason, privacy: .public)")
     }
 
     private func normalizeName(_ name: String) -> String? {
-        let normalized = name.lowercased()
+        let normalized = FeatureValidator.stripPII(name.lowercased())
         guard !normalized.isEmpty, normalized.count <= FeatureValidator.maxLength else { return nil }
         guard FeatureValidator.isValid(normalized) else {
-            if debugLogging {
-                logger.warning("[Trackless] rejected invalid event name: \(name, privacy: .public)")
-            }
+            warn("event name rejected: \"\(name)\" — must match [a-z0-9_.-], no leading/trailing/consecutive dots")
             onError?(TracklessError.invalidFeatureName(name))
             return nil
         }
@@ -391,15 +413,11 @@ actor TracklessState {
 
                 if result.status >= 500 {
                     await circuitBreaker.recordFailure()
-                    if debugLogging {
-                        logger.error("[Trackless] flush failed — HTTP \(result.status)")
-                    }
+                    warn("flush failed — HTTP \(result.status)")
                     onError?(TracklessError.flushFailed(statusCode: result.status))
                 } else if result.status >= 400 {
                     let bodyText = Self.parseResponseSummary(result.body)
-                    if debugLogging {
-                        logger.warning("[Trackless] flush rejected — HTTP \(result.status) \(bodyText, privacy: .public)")
-                    }
+                    warn("flush rejected — HTTP \(result.status) \(bodyText)")
                     onError?(TracklessError.flushRejected(statusCode: result.status, body: bodyText))
                 } else {
                     await circuitBreaker.recordSuccess()
@@ -439,11 +457,11 @@ actor TracklessState {
         timer.resume()
     }
 
-    // MARK: - Background Flush
+    // MARK: - Lifecycle Observers
 
-    private func addBackgroundObserver() {
+    private func addLifecycleObservers() {
         #if os(iOS) || os(tvOS)
-        let observer = NotificationCenter.default.addObserver(
+        let backgroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
             queue: .main
@@ -454,13 +472,33 @@ actor TracklessState {
                 await self.performFlush()
             }
         }
-        observerState.setObserver(observer)
+        observerState.addObserver(backgroundObserver)
+
+        let foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task {
+                await self.handleForegroundResume()
+            }
+        }
+        observerState.addObserver(foregroundObserver)
         #endif
+    }
+
+    private func handleForegroundResume() async {
+        guard canRecord() else { return }
+        await startNewSession()
+        if debugLogging {
+            logger.info("[Trackless] foreground — started new session")
+        }
     }
 
     #if os(iOS) || os(tvOS)
     private func cleanupObserver() {
-        if let observer = observerState.removeObserver() {
+        for observer in observerState.removeAllObservers() {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -492,18 +530,18 @@ final class TimerState: @unchecked Sendable {
 
 final class ObserverState: @unchecked Sendable {
     private let lock = NSLock()
-    private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
 
-    func setObserver(_ newObserver: NSObjectProtocol) {
+    func addObserver(_ observer: NSObjectProtocol) {
         lock.lock()
-        observer = newObserver
+        observers.append(observer)
         lock.unlock()
     }
 
-    func removeObserver() -> NSObjectProtocol? {
+    func removeAllObservers() -> [NSObjectProtocol] {
         lock.lock()
-        let current = observer
-        observer = nil
+        let current = observers
+        observers = []
         lock.unlock()
         return current
     }

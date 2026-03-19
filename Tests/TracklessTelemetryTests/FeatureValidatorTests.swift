@@ -122,4 +122,44 @@ struct FeatureValidatorTests {
         // Contains 'g' which is not hex, so not entirely-hex
         #expect(FeatureValidator.isValid("abcdefg0123456789") == true)
     }
+
+    // MARK: - PII Stripping
+
+    @Test("stripPII replaces email addresses with [REDACTED]")
+    func stripEmail() {
+        #expect(FeatureValidator.stripPII("contact user@example.com now") == "contact [REDACTED] now")
+    }
+
+    @Test("stripPII replaces dashed SSN patterns with [REDACTED]")
+    func stripSSNDashed() {
+        #expect(FeatureValidator.stripPII("ssn 123-45-6789 here") == "ssn [REDACTED] here")
+    }
+
+    @Test("stripPII replaces 9-digit SSN patterns with [REDACTED]")
+    func stripSSNPlain() {
+        #expect(FeatureValidator.stripPII("id 123456789 entered") == "id [REDACTED] entered")
+    }
+
+    @Test("stripPII replaces phone numbers with [REDACTED]")
+    func stripPhone() {
+        #expect(FeatureValidator.stripPII("called +1 (555) 123-4567") == "called [REDACTED]")
+    }
+
+    @Test("stripPII replaces unformatted phone numbers with [REDACTED]")
+    func stripPhoneUnformatted() {
+        #expect(FeatureValidator.stripPII("number 5551234567") == "number [REDACTED]")
+    }
+
+    @Test("stripPII handles multiple PII patterns in one string")
+    func stripMultiplePII() {
+        let result = FeatureValidator.stripPII("email: a@b.com phone: 555-123-4567")
+        #expect(!result.contains("a@b.com"))
+        #expect(!result.contains("555-123-4567"))
+    }
+
+    @Test("stripPII leaves non-PII strings unchanged")
+    func stripPIINoChange() {
+        #expect(FeatureValidator.stripPII("dark_mode") == "dark_mode")
+        #expect(FeatureValidator.stripPII("export_clicked") == "export_clicked")
+    }
 }
