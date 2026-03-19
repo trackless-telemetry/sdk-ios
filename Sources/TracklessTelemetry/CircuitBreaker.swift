@@ -7,7 +7,7 @@ import Foundation
 /// A single successful flush resets the failure count and backoff to zero.
 ///
 /// Backoff delays: 30s, 1m, 5m, 15m, 60m (max)
-public actor CircuitBreaker {
+actor CircuitBreaker {
 
     /// Backoff delay schedule in seconds.
     static let delays: [TimeInterval] = [30, 60, 300, 900, 3600]
@@ -15,29 +15,29 @@ public actor CircuitBreaker {
     private var consecutiveFailures: Int = 0
     private var nextRetryAt: Date = .distantPast
 
-    public init() {}
+    init() {}
 
     /// Can we attempt a flush right now?
-    public func canAttempt() -> Bool {
+    func canAttempt() -> Bool {
         if consecutiveFailures == 0 { return true }
         return Date() >= nextRetryAt
     }
 
     /// Record a successful flush -- resets backoff entirely.
-    public func recordSuccess() {
+    func recordSuccess() {
         consecutiveFailures = 0
         nextRetryAt = .distantPast
     }
 
     /// Record a flush failure -- advances backoff schedule.
-    public func recordFailure() {
+    func recordFailure() {
         consecutiveFailures += 1
         let delayIndex = min(consecutiveFailures - 1, Self.delays.count - 1)
         nextRetryAt = Date().addingTimeInterval(Self.delays[delayIndex])
     }
 
     /// Current consecutive failure count (for testing).
-    public var failures: Int {
+    var failures: Int {
         consecutiveFailures
     }
 }

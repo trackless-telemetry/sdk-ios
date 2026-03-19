@@ -12,13 +12,13 @@
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `1.0.0` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.2.0` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "1.0.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.0")
 ]
 ```
 
@@ -48,9 +48,7 @@ import TracklessTelemetry
 @main
 struct MyApp: App {
     init() {
-        Trackless.configure(TracklessConfig(
-            apiKey: "tl_your_api_key_here"
-        ))
+        Trackless.configure(apiKey: "tl_your_api_key_here")
     }
 
     var body: some Scene {
@@ -73,9 +71,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        Trackless.configure(TracklessConfig(
-            apiKey: "tl_your_api_key_here"
-        ))
+        Trackless.configure(apiKey: "tl_your_api_key_here")
         return true
     }
 }
@@ -84,15 +80,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 ### Configuration Options
 
 ```swift
-Trackless.configure(TracklessConfig(
+Trackless.configure(
     apiKey: "tl_your_api_key_here",       // Required — API key with tl_ prefix
     endpoint: "https://custom.api.com",   // Optional — defaults to https://api.tracklesstelemetry.com
     environment: .sandbox,                 // Optional — auto-detected from build config
     enabled: true,                         // Optional — set false to disable all recording
     onError: { error in print(error) },    // Optional — error callback for debugging
     flushIntervalSeconds: 60,              // Optional — how often buffered events are sent
-    debugLogging: true                     // Optional — enable debug logging via os.Logger
-))
+    debugLogging: true,                    // Optional — enable debug logging for happy-path events
+    suppressWarnings: false                // Optional — suppress warning and error logging
+)
 ```
 
 | Option                  | Type                                  | Default                                | Description                                   |
@@ -103,7 +100,8 @@ Trackless.configure(TracklessConfig(
 | `enabled`               | `Bool`                                | `true`                                 | Set `false` to disable all recording          |
 | `onError`               | `(@Sendable (Error) -> Void)?`        | `nil`                                  | Error callback for debugging                  |
 | `flushIntervalSeconds`  | `TimeInterval`                        | `60`                                   | How often buffered events are sent (seconds)  |
-| `debugLogging`          | `Bool`                                | `false`                                | Enable debug logging via os.Logger            |
+| `debugLogging`          | `Bool`                                | `false`                                | Enable debug logging for happy-path events    |
+| `suppressWarnings`      | `Bool`                                | `false`                                | Suppress warning and error logging            |
 
 **Environment auto-detection:** In `DEBUG` builds, environment defaults to `.sandbox`. In release builds, it defaults to `.production`. Override by passing `environment:` explicitly.
 
@@ -113,14 +111,15 @@ Trackless.configure(TracklessConfig(
 
 All methods are static. Call them anywhere after `configure()`. Every method is non-blocking, non-throwing, and safe to call from any thread.
 
-### Screen Views
+### Views
 
-Record when a user views a screen:
+Record when a user views a screen, with an optional detail:
 
 ```swift
-Trackless.screen("home")
-Trackless.screen("settings")
-Trackless.screen("profile.edit")
+Trackless.view("home")
+Trackless.view("settings")
+Trackless.view("profile.edit")
+Trackless.view("settings", detail: "notifications")  // with detail
 ```
 
 **When to use:** View appearances, tab switches, navigation destinations.
@@ -129,9 +128,9 @@ Trackless.screen("profile.edit")
 
 ```swift
 extension View {
-    func trackScreen(_ name: String) -> some View {
+    func trackView(_ name: String) -> some View {
         self.onAppear {
-            Trackless.screen(name)
+            Trackless.view(name)
         }
     }
 }
@@ -140,7 +139,7 @@ extension View {
 struct HomeView: View {
     var body: some View {
         VStack { /* ... */ }
-            .trackScreen("home")
+            .trackView("home")
     }
 }
 ```
@@ -152,13 +151,13 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             HomeView()
-                .trackScreen("home")
+                .trackView("home")
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case .settings:
-                        SettingsView().trackScreen("settings")
+                        SettingsView().trackView("settings")
                     case .profile:
-                        ProfileView().trackScreen("profile")
+                        ProfileView().trackView("profile")
                     }
                 }
         }
@@ -172,7 +171,7 @@ struct ContentView: View {
 class SettingsViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        Trackless.screen("settings")
+        Trackless.view("settings")
     }
 }
 ```
@@ -185,7 +184,7 @@ Record when a user interacts with a feature:
 Trackless.feature("export_clicked")
 Trackless.feature("dark_mode_toggled")
 Trackless.feature("photo-upload")
-Trackless.feature("settings.notifications")
+Trackless.feature("settings", detail: "notifications")
 ```
 
 **When to use:** Button taps, toggle switches, user-initiated actions.
@@ -225,41 +224,33 @@ Trackless.funnel("onboarding", stepIndex: 3, step: "complete")
 - Steps are deduplicated per session — calling the same step index twice is a no-op
 - Funnel state resets when the session ends
 
-### Selections
-
-Track choices from a set of options:
-
-```swift
-Trackless.selection("theme", option: "dark")
-Trackless.selection("sort_order", option: "price_low_to_high")
-Trackless.selection("plan", option: "pro_monthly")
-Trackless.selection("map_type", option: "satellite")
-```
-
-**When to use:** Picker selections, segmented control choices, radio buttons, any place a user picks from a defined set.
-
 ### Performance Metrics
 
-Record timing measurements in seconds:
+Record timing measurements in seconds, with an optional **threshold** for breach tracking:
 
 ```swift
 // Measure API call duration
 let start = CFAbsoluteTimeGetCurrent()
 let data = try await fetchUserProfile()
-Trackless.performance("api_user_profile", duration: CFAbsoluteTimeGetCurrent() - start)
+Trackless.performance("api_user_profile", durationSeconds: CFAbsoluteTimeGetCurrent() - start)
 
 // Measure image processing
 let start = CFAbsoluteTimeGetCurrent()
 let processed = processImage(original)
-Trackless.performance("image_processing", duration: CFAbsoluteTimeGetCurrent() - start)
+Trackless.performance("image_processing", durationSeconds: CFAbsoluteTimeGetCurrent() - start)
 
 // App launch time (measure in didFinishLaunchingWithOptions or App.init)
-Trackless.performance("app_launch", duration: launchDuration)
+Trackless.performance("app_launch", durationSeconds: launchDuration)
+
+// With threshold — track how many measurements exceed 2 seconds
+Trackless.performance("api_user_profile", durationSeconds: elapsed, thresholdSeconds: 2.0)
 ```
 
-**When to use:** API latency, image processing time, database query time, app launch time — any timing you want percentile distributions for (p50/p75/p90/p95/p99).
+**When to use:** API latency, image processing time, database query time, app launch time — any timing you want percentile distributions for (p50/p90/p99).
 
-**Important:** Duration is in **seconds** (not milliseconds).
+**Threshold:** The optional `threshold` parameter defines a performance threshold in seconds. Each name/threshold combination is tracked separately, with breach counts shown in the dashboard.
+
+**Important:** Duration is in **seconds** (not milliseconds). Threshold must be > 0.
 
 ### Errors
 
@@ -293,41 +284,36 @@ All event names follow the same rules:
 |------|--------|
 | **Auto-lowercase** | Names are automatically lowercased — `Export_Clicked` becomes `export_clicked` |
 | **Characters** | Lowercase `a-z`, digits `0-9`, underscores `_`, hyphens `-`, dots `.` |
-| **Length** | 1–100 characters |
-| **Dots** | Dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`) |
+| **Length** | 1–100 characters (also applies to `detail` and `code` fields) |
 | **No identifiers** | UUIDs, long hex strings, and numeric-only strings >12 chars are rejected |
 
-**Valid:** `checkout_started`, `settings.dark_mode`, `photo-upload`, `nav.settings.display`
+**Valid:** `checkout_started`, `dark_mode`, `photo-upload`, `settings.theme`
 **Also valid (auto-lowercased):** `Export_Clicked` → `export_clicked`, `Settings.Theme` → `settings.theme`
 **Invalid:** `user 123` (space), `.leading-dot` (leading dot), `export!clicked` (special characters)
 
-### Hierarchical Grouping with Dots
+### Feature Grouping with Detail
 
-Use `.` delimiters to create hierarchical event names. The dashboard groups **feature** events by the first dot segment and shows donut charts with the distribution of values within each group.
+Use the optional `detail` parameter to distinguish variants within a feature. The dashboard groups features that have detail values and shows donut charts with the distribution.
 
 ```swift
 // These create a "theme" group in the dashboard with "dark" and "light" values
-Trackless.feature("theme.dark")
-Trackless.feature("theme.light")
+Trackless.feature("theme", detail: "dark")
+Trackless.feature("theme", detail: "light")
 
-// Deeper hierarchies work too — grouped by first segment ("settings")
-Trackless.feature("settings.display.theme")
-Trackless.feature("settings.display.layout")
-Trackless.feature("settings.notifications")
+// Use detail for any choice-from-a-set scenario
+Trackless.feature("distance_preset", detail: "1_mile")
+Trackless.feature("distance_preset", detail: "2_miles")
+Trackless.feature("settings", detail: "notifications")
 ```
 
-**Which types support grouping?** Dots are allowed in names for all event types, but the dashboard's automatic group visualization (donut charts) currently applies to **`feature`** events only. For other use cases, consider the typed alternatives:
-
-- Instead of `feature("theme.dark")` / `feature("theme.light")` → use `selection("theme", "dark")` for choice-from-a-set scenarios
-- Use `feature` with dots when you want the dashboard group charts, or when the variants aren't mutually exclusive choices
+**Which types support grouping?** The `detail` parameter is supported on `feature` and `view` events. The dashboard's automatic group visualization (donut charts) applies to both.
 
 ## 5. Session Lifecycle
 
 Sessions are managed automatically. No code needed.
 
-- **Start:** A session begins when `Trackless.configure()` is called
-- **End:** A session ends when the app enters the background (via `willResignActive`)
-- **Resume vs. new session:** If the app returns to the foreground within 30 minutes, the existing session continues. After 30 minutes in the background, the old session ends and a new one starts on `didBecomeActive`.
+- **Start:** A session begins when `Trackless.configure()` is called, and a new session starts each time the app returns to the foreground
+- **End:** A session ends when the app enters the background — the session-end event (with duration and depth) is flushed immediately
 - **Depth:** Every non-session event increments the session's depth counter
 - **Duration:** Measured from session start to session end
 - **Context:** `daysSinceInstall` is computed from the Documents directory creation date (read-only, no disk writes)
@@ -337,7 +323,7 @@ Sessions are managed automatically. No code needed.
 Events are buffered in memory and sent in batches:
 
 - **Periodic flush:** Every 60 seconds if the buffer is non-empty
-- **Item threshold:** When the buffer reaches 100 unique items
+- **Item thresholdSeconds:** When the buffer reaches 100 unique items
 - **Session end:** Flushed when the app backgrounds (using `UIApplication.beginBackgroundTask`)
 - **Manual:** Call `await Trackless.flush()` at any time
 - **Client-side rollup:** Duplicate events are pre-aggregated (e.g., 50 `feature("save")` calls become one event with `count: 50`)
@@ -346,6 +332,11 @@ Events are buffered in memory and sent in batches:
 ## 7. Runtime Controls
 
 ```swift
+// Check if the SDK is configured (useful in shared/library code)
+if await Trackless.isConfigured {
+    Trackless.feature("shared_action")
+}
+
 // Disable recording (e.g., user opts out)
 Trackless.setEnabled(false)   // Discards buffer, stops timers
 
@@ -370,25 +361,23 @@ import TracklessTelemetry
 @main
 struct ShopApp: App {
     init() {
-        Trackless.configure(TracklessConfig(
-            apiKey: "tl_abc123def456"
-        ))
+        Trackless.configure(apiKey: "tl_abc123def456")
     }
 
     var body: some Scene {
         WindowGroup {
             TabView {
                 HomeView()
-                    .trackScreen("home")
+                    .trackView("home")
                     .tabItem { Label("Home", systemImage: "house") }
                 SearchView()
-                    .trackScreen("search")
+                    .trackView("search")
                     .tabItem { Label("Search", systemImage: "magnifyingglass") }
                 CartView()
-                    .trackScreen("cart")
+                    .trackView("cart")
                     .tabItem { Label("Cart", systemImage: "cart") }
                 ProfileView()
-                    .trackScreen("profile")
+                    .trackView("profile")
                     .tabItem { Label("Profile", systemImage: "person") }
             }
         }
@@ -422,7 +411,7 @@ struct SearchView: View {
                 results = try await searchProducts(query)
                 Trackless.performance(
                     "search_api",
-                    duration: CFAbsoluteTimeGetCurrent() - start
+                    durationSeconds: CFAbsoluteTimeGetCurrent() - start
                 )
             } catch {
                 Trackless.error("search_failed", severity: .error)
@@ -447,7 +436,7 @@ struct CheckoutFlow: View {
                 })
             case .shipping:
                 ShippingForm(onSelect: { method in
-                    Trackless.selection("shipping_method", option: method)
+                    Trackless.feature("shipping_method", detail: method)
                     Trackless.funnel("checkout", stepIndex: 1, step: "enter_shipping")
                     step = .payment
                 })
@@ -472,7 +461,7 @@ struct CheckoutFlow: View {
                 try await placeOrder()
                 Trackless.performance(
                     "order_submission",
-                    duration: CFAbsoluteTimeGetCurrent() - start
+                    durationSeconds: CFAbsoluteTimeGetCurrent() - start
                 )
                 step = .confirmation
             } catch {
@@ -500,7 +489,7 @@ struct SettingsView: View {
                 Text("Dark").tag("dark")
             }
             .onChange(of: theme) { _, newValue in
-                Trackless.selection("theme", option: newValue)
+                Trackless.feature("theme", detail: newValue)
             }
 
             Button("Export Data") {
@@ -513,7 +502,7 @@ struct SettingsView: View {
                 clearCache()
             }
         }
-        .trackScreen("settings")
+        .trackView("settings")
     }
 }
 ```
@@ -528,9 +517,9 @@ Trackless collects **no user identifiers** and stores **only aggregate counts**:
 - **No persistent storage** — no UserDefaults, Keychain, files, or Core Data
 - **No cross-session linking** — session state is in-memory only
 - **No data sent to third parties** — events go only to your configured endpoint
-- **PII auto-redaction** on custom event properties
+- **PII auto-stripping** — email addresses, phone numbers, and SSN patterns are automatically stripped from all event fields before buffering
 
-The only context collected is: platform (`"ios"`), OS version (major.minor), device class (phone/tablet/desktop), locale (from `Locale.current`), app version, build number, and days since install. All are coarse, non-identifying dimensions.
+The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), app version, build number, and days since install. All are coarse, non-identifying dimensions.
 
 ## 10. API Key Management
 
@@ -542,7 +531,7 @@ Store the API key securely. Do **not** hardcode it in source files committed to 
    ```swift
    // Define in xcconfig or Info.plist
    let apiKey = Bundle.main.infoDictionary?["TRACKLESS_API_KEY"] as? String ?? ""
-   Trackless.configure(TracklessConfig(apiKey: apiKey))
+   Trackless.configure(apiKey: apiKey)
    ```
 
 2. **Environment-based:**
@@ -552,5 +541,5 @@ Store the API key securely. Do **not** hardcode it in source files committed to 
    #else
    let apiKey = "tl_production_key_here"
    #endif
-   Trackless.configure(TracklessConfig(apiKey: apiKey))
+   Trackless.configure(apiKey: apiKey)
    ```

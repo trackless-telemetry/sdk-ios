@@ -7,10 +7,10 @@ import Foundation
 /// Non-aggregatable events (funnel, session start/end) are appended individually.
 ///
 /// Uses Swift actor for thread safety (Swift 6 strict concurrency).
-public actor EventBuffer {
+actor EventBuffer {
 
     /// Default max unique items in the buffer.
-    public static let defaultMaxItems = 1000
+    static let defaultMaxItems = 1000
 
     /// Max events per flush payload.
     static let maxEventsPerFlush = 100
@@ -30,13 +30,13 @@ public actor EventBuffer {
         return formatter
     }()
 
-    public init(maxItems: Int = EventBuffer.defaultMaxItems) {
+    init(maxItems: Int = EventBuffer.defaultMaxItems) {
         self.maxItems = maxItems
     }
 
     /// Add an event to the buffer. Returns true if accepted.
     @discardableResult
-    public func add(_ event: TracklessEvent) -> Bool {
+    func add(_ event: TracklessEvent) -> Bool {
         // Non-aggregatable types go to individual list
         if event.type == .funnel || (event.type == .session && event.name != "duration") {
             if totalSize >= maxItems { return false }
@@ -100,7 +100,7 @@ public actor EventBuffer {
     }
 
     /// Drain the buffer into TracklessEventPayloads and clear it.
-    public func drain(environment: String, context: TracklessEventContext) -> [TracklessEventPayload] {
+    func drain(environment: String, context: TracklessEventContext) -> [TracklessEventPayload] {
         let allEvents = Array(aggregated.values) + individual
         aggregated.removeAll()
         individual.removeAll()
@@ -127,18 +127,18 @@ public actor EventBuffer {
     }
 
     /// Clear the buffer without draining.
-    public func clear() {
+    func clear() {
         aggregated.removeAll()
         individual.removeAll()
     }
 
     /// Total number of unique items in the buffer.
-    public var totalSize: Int {
+    var totalSize: Int {
         aggregated.count + individual.count
     }
 
     /// Check if the buffer is empty.
-    public var isEmpty: Bool {
+    var isEmpty: Bool {
         totalSize == 0
     }
 
@@ -150,7 +150,8 @@ public actor EventBuffer {
         case .error:
             return "\(event.type.rawValue)|\(event.name)|\(event.severity?.rawValue ?? "")|\(event.code ?? "")"
         case .performance:
-            return "\(event.type.rawValue)|\(event.name)"
+            let thresholdStr = event.threshold.map { String($0) } ?? ""
+            return "\(event.type.rawValue)|\(event.name)|\(thresholdStr)"
         case .session:
             return "\(event.type.rawValue)|\(event.name)"
         case .funnel:

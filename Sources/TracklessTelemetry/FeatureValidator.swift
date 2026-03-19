@@ -60,6 +60,53 @@ enum FeatureValidator {
         return true
     }
 
+    // MARK: - PII Stripping
+
+    /// Regex patterns for PII detection.
+    private static let emailPattern = try! NSRegularExpression(
+        pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",
+        options: [.caseInsensitive]
+    )
+    private static let ssnDashedPattern = try! NSRegularExpression(
+        pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+        options: []
+    )
+    private static let ssnPlainPattern = try! NSRegularExpression(
+        pattern: "\\b\\d{9}\\b",
+        options: []
+    )
+    private static let phonePattern = try! NSRegularExpression(
+        pattern: "\\+?\\d[\\d\\s\\-\\.\\(\\)]{8,}\\d",
+        options: []
+    )
+
+    /// Strip PII patterns (emails, SSNs, phone numbers) from a string,
+    /// replacing matches with [REDACTED].
+    static func stripPII(_ value: String) -> String {
+        var result = value
+
+        // Email addresses
+        result = emailPattern.stringByReplacingMatches(
+            in: result, options: [], range: NSRange(result.startIndex..., in: result),
+            withTemplate: "[REDACTED]"
+        )
+        // SSN patterns (check before phone numbers to avoid false matches)
+        result = ssnDashedPattern.stringByReplacingMatches(
+            in: result, options: [], range: NSRange(result.startIndex..., in: result),
+            withTemplate: "[REDACTED]"
+        )
+        result = ssnPlainPattern.stringByReplacingMatches(
+            in: result, options: [], range: NSRange(result.startIndex..., in: result),
+            withTemplate: "[REDACTED]"
+        )
+        // Phone numbers
+        result = phonePattern.stringByReplacingMatches(
+            in: result, options: [], range: NSRange(result.startIndex..., in: result),
+            withTemplate: "[REDACTED]"
+        )
+        return result
+    }
+
     // MARK: - Private Helpers
 
     /// Matches UUID format: [0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}
