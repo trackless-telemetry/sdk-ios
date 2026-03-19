@@ -162,4 +162,65 @@ struct FeatureValidatorTests {
         #expect(FeatureValidator.stripPII("dark_mode") == "dark_mode")
         #expect(FeatureValidator.stripPII("export_clicked") == "export_clicked")
     }
+
+    // MARK: - Normalization
+
+    @Test("normalize lowercases and replaces spaces with underscores")
+    func normalizeSpaces() {
+        #expect(FeatureValidator.normalize("My Feature") == "my_feature")
+        #expect(FeatureValidator.normalize("Product Details Page") == "product_details_page")
+    }
+
+    @Test("normalize replaces special characters with underscores")
+    func normalizeSpecialChars() {
+        #expect(FeatureValidator.normalize("export!clicked") == "export_clicked")
+        #expect(FeatureValidator.normalize("feature@name#here") == "feature_name_here")
+    }
+
+    @Test("normalize collapses consecutive dots")
+    func normalizeConsecutiveDots() {
+        #expect(FeatureValidator.normalize("foo..bar") == "foo.bar")
+        #expect(FeatureValidator.normalize("a...b...c") == "a.b.c")
+    }
+
+    @Test("normalize trims leading/trailing underscores and dots")
+    func normalizeTrimming() {
+        #expect(FeatureValidator.normalize("...foo...") == "foo")
+        #expect(FeatureValidator.normalize("___bar___") == "bar")
+        #expect(FeatureValidator.normalize("._foo._") == "foo")
+    }
+
+    @Test("normalize returns nil for empty result")
+    func normalizeEmpty() {
+        #expect(FeatureValidator.normalize("") == nil)
+        #expect(FeatureValidator.normalize("!!!") == nil)
+        #expect(FeatureValidator.normalize("...") == nil)
+    }
+
+    @Test("normalize returns nil for abuse patterns")
+    func normalizeAbusePattern() {
+        // 18 hex-only chars triggers the entirely-hex-and-long abuse check
+        #expect(FeatureValidator.normalize("abcdefabcdefabcdef") == nil)
+        #expect(FeatureValidator.normalize(String(repeating: "a", count: 25)) == nil)
+    }
+
+    @Test("normalize truncates to max length")
+    func normalizeTruncation() {
+        let long = String(repeating: "x", count: 150)
+        let result = FeatureValidator.normalize(long)
+        #expect(result?.count == 100)
+    }
+
+    @Test("normalize strips PII before normalizing")
+    func normalizePII() {
+        // Email gets stripped to [REDACTED], then brackets normalized away
+        #expect(FeatureValidator.normalize("user@example.com") == "redacted")
+    }
+
+    @Test("normalize preserves valid strings")
+    func normalizeValidStrings() {
+        #expect(FeatureValidator.normalize("export_clicked") == "export_clicked")
+        #expect(FeatureValidator.normalize("theme.dark") == "theme.dark")
+        #expect(FeatureValidator.normalize("my-feature") == "my-feature")
+    }
 }
