@@ -24,7 +24,7 @@ Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.1")
 ]
 ```
 
@@ -106,11 +106,15 @@ await Trackless.destroy()    // Flush and permanently disable
 
 ## Event Naming Rules
 
-- **Auto-lowercase:** names are automatically lowercased (`Export_Clicked` → `export_clicked`)
-- **Characters:** lowercase letters, numbers, underscores, hyphens, and dots (`[a-z0-9_.-]`)
-- **Length:** 1–100 characters
+All event fields (`name`, `detail`, `step`, `code`) are automatically normalized:
+
+- **Auto-normalize:** spaces and invalid characters are replaced with `_` (`Sign Up Button` → `sign_up_button`)
+- **Auto-lowercase:** fields are lowercased (`Export_Clicked` → `export_clicked`)
+- **Trim/collapse:** leading/trailing `_`/`.` trimmed, consecutive dots collapsed
+- **Truncate:** fields are truncated to 100 characters
 - **Dots:** dots allowed for hierarchical grouping (e.g., `settings.theme`, `nav.settings.display`)
 - **No identifiers:** UUIDs, long hex strings, and long numeric strings are rejected
+- **PII stripping:** emails, phone numbers, and SSN patterns are stripped from all fields
 
 ## How It Works
 

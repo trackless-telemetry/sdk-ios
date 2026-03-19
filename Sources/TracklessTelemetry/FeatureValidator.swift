@@ -107,6 +107,55 @@ enum FeatureValidator {
         return result
     }
 
+    // MARK: - Normalization
+
+    /// Normalize a field value (name, detail, step, code) into a valid format.
+    /// Strips PII, lowercases, replaces invalid chars with underscores, and validates.
+    /// Returns `nil` if the result is empty or matches an abuse pattern.
+    static func normalize(_ value: String) -> String? {
+        var result = stripPII(value).lowercased()
+        // Replace runs of non-allowed chars with a single underscore
+        let allowedChars = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789_.-")
+        var normalized = ""
+        var lastWasUnderscore = false
+        for scalar in result.unicodeScalars {
+            if allowedChars.contains(scalar) {
+                normalized.append(Character(scalar))
+                lastWasUnderscore = false
+            } else if !lastWasUnderscore {
+                normalized.append("_")
+                lastWasUnderscore = true
+            }
+        }
+        result = normalized
+        // Trim leading/trailing underscores and dots
+        let trimChars = CharacterSet(charactersIn: "_.")
+        result = result.trimmingCharacters(in: trimChars)
+        // Collapse consecutive dots
+        while result.contains("..") {
+            result = result.replacingOccurrences(of: "..", with: ".")
+        }
+        guard !result.isEmpty else { return nil }
+        // Truncate to max length
+        if result.count > maxLength {
+            result = String(result.prefix(maxLength))
+        }
+        // Reject abuse patterns
+        guard !isAbusePattern(result) else { return nil }
+        return result
+    }
+
+    // MARK: - Abuse Detection
+
+    /// Returns `true` if the name matches anti-identifier abuse patterns.
+    static func isAbusePattern(_ name: String) -> Bool {
+        if matchesUUIDPattern(name) { return true }
+        if containsLongHexSequence(name) { return true }
+        if isLongNumericOnly(name) { return true }
+        if isEntirelyHexAndLong(name) { return true }
+        return false
+    }
+
     // MARK: - Private Helpers
 
     /// Matches UUID format: [0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}

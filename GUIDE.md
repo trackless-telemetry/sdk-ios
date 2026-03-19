@@ -12,13 +12,13 @@
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `0.2.0` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.2.1` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.1")
 ]
 ```
 
@@ -278,18 +278,21 @@ do {
 
 ## 4. Event Naming Rules
 
-All event names follow the same rules:
+All event fields (`name`, `detail`, `step`, `code`) are automatically normalized before buffering:
 
 | Rule | Detail |
 |------|--------|
-| **Auto-lowercase** | Names are automatically lowercased — `Export_Clicked` becomes `export_clicked` |
-| **Characters** | Lowercase `a-z`, digits `0-9`, underscores `_`, hyphens `-`, dots `.` |
-| **Length** | 1–100 characters (also applies to `detail` and `code` fields) |
+| **Auto-lowercase** | Fields are lowercased — `Export_Clicked` becomes `export_clicked` |
+| **Auto-normalize** | Spaces and invalid characters are replaced with `_` — `Sign Up Button` becomes `sign_up_button` |
+| **Trim** | Leading/trailing underscores and dots are removed — `...foo...` becomes `foo` |
+| **Collapse dots** | Consecutive dots are collapsed — `foo..bar` becomes `foo.bar` |
+| **Truncate** | Truncated to 100 characters |
 | **No identifiers** | UUIDs, long hex strings, and numeric-only strings >12 chars are rejected |
+| **PII stripping** | Emails, phone numbers, and SSN patterns are stripped from all fields |
 
-**Valid:** `checkout_started`, `dark_mode`, `photo-upload`, `settings.theme`
-**Also valid (auto-lowercased):** `Export_Clicked` → `export_clicked`, `Settings.Theme` → `settings.theme`
-**Invalid:** `user 123` (space), `.leading-dot` (leading dot), `export!clicked` (special characters)
+**Valid characters after normalization:** Lowercase `a-z`, digits `0-9`, underscores `_`, hyphens `-`, dots `.`
+
+**Examples:** `"Sign Up Button"` → `"sign_up_button"`, `"ERR_001"` → `"err_001"`, `"Export!Clicked"` → `"export_clicked"`, `"Settings.Theme"` → `"settings.theme"`
 
 ### Feature Grouping with Detail
 

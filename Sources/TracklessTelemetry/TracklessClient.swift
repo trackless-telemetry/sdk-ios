@@ -222,15 +222,17 @@ actor TracklessState {
         }
         guard let normalized = normalizeName(name) else { return }
 
-        let rawDetail = (detail?.isEmpty == false) ? detail : nil
-        if let rawDetail, rawDetail.count > FeatureValidator.maxLength { return }
+        let normalizedDetail: String? = if let detail, !detail.isEmpty {
+            FeatureValidator.normalize(detail)
+        } else {
+            nil
+        }
 
         await session.recordActivity()
-        let eventDetail = rawDetail.map { FeatureValidator.stripPII($0) }
-        await buffer.add(TracklessEvent(type: type, name: normalized, detail: eventDetail))
+        await buffer.add(TracklessEvent(type: type, name: normalized, detail: normalizedDetail))
         if debugLogging {
-            if let eventDetail {
-                logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public) detail=\(eventDetail, privacy: .public)")
+            if let normalizedDetail {
+                logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public) detail=\(normalizedDetail, privacy: .public)")
             } else {
                 logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public)")
             }
@@ -292,15 +294,18 @@ actor TracklessState {
             return
         }
         guard let normalized = normalizeName(name) else { return }
-        if let code, code.count > FeatureValidator.maxLength { return }
 
-        let strippedCode = code.map { FeatureValidator.stripPII($0) }
+        let normalizedCode: String? = if let code, !code.isEmpty {
+            FeatureValidator.normalize(code)
+        } else {
+            nil
+        }
         await session.recordActivity()
         await buffer.add(TracklessEvent(
             type: .error,
             name: normalized,
             severity: severity,
-            code: strippedCode
+            code: normalizedCode
         ))
         if debugLogging {
             logger.info("[Trackless] error — \(normalized, privacy: .public) severity=\(severity.rawValue, privacy: .public)")
@@ -358,10 +363,8 @@ actor TracklessState {
     }
 
     private func normalizeName(_ name: String) -> String? {
-        let normalized = FeatureValidator.stripPII(name.lowercased())
-        guard !normalized.isEmpty, normalized.count <= FeatureValidator.maxLength else { return nil }
-        guard FeatureValidator.isValid(normalized) else {
-            warn("event name rejected: \"\(name)\" — must match [a-z0-9_.-], no leading/trailing/consecutive dots")
+        guard let normalized = FeatureValidator.normalize(name) else {
+            warn("event name rejected: \"\(name)\"")
             onError?(TracklessError.invalidFeatureName(name))
             return nil
         }
