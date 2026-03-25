@@ -12,13 +12,13 @@
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `0.2.1` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.2.2` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.1")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.2")
 ]
 ```
 
@@ -520,9 +520,23 @@ Trackless collects **no user identifiers** and stores **only aggregate counts**:
 - **No persistent storage** — no UserDefaults, Keychain, files, or Core Data
 - **No cross-session linking** — session state is in-memory only
 - **No data sent to third parties** — events go only to your configured endpoint
+- **No stack traces, crash logs, or error messages** — error tracking uses only developer-defined names, severity levels, and codes
+- **No individual performance measurements stored** — durations are aggregated server-side into statistical digests (t-digest)
 - **PII auto-stripping** — email addresses, phone numbers, and SSN patterns are automatically stripped from all event fields before buffering
 
-The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), app version, build number, and days since install. All are coarse, non-identifying dimensions.
+The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.2.2"`). All are coarse, non-identifying dimensions.
+
+### App Store Privacy Labels
+
+When submitting to the App Store, declare the following in App Store Connect (all **Not Linked to User Identity**, **Not Used for Tracking**):
+
+| Category | Data Type | Why |
+|----------|-----------|-----|
+| Usage Data | Product Interaction | Feature counts, view counts, funnel steps |
+| Diagnostics | Crash Data | Error events (name, severity, code — no stack traces) |
+| Diagnostics | Performance Data | Performance metrics (duration digest — no individual measurements) |
+
+ATT is **not required**. See [Section 22.7 of the SDK requirements](https://github.com/trackless-telemetry/platform/blob/main/docs/requirements/sdks.md#227-app-store-privacy-compliance-guidance) for full guidance.
 
 ## 10. API Key Management
 

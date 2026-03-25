@@ -24,7 +24,7 @@ Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.1")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.2")
 ]
 ```
 
@@ -135,9 +135,11 @@ The SDK captures a small set of **coarse, non-identifying** dimensions:
 | `osVersion` | `"17"` | `ProcessInfo` (major only) |
 | `deviceClass` | `"phone"`, `"tablet"`, `"desktop"` | `UIDevice.userInterfaceIdiom` |
 | `region` | `"US"` | `Locale.current` (country code) |
+| `language` | `"en"` | `Locale.current` (ISO 639-1 code) |
 | `appVersion` | `"2.1.0"` | `Bundle.main` |
 | `buildNumber` | `"142"` | `Bundle.main` |
 | `daysSinceInstall` | `45` | Documents directory creation date |
+| `sdkVersion` | `"ios/0.2.2"` | SDK platform and version identifier |
 
 ## What Trackless Does NOT Collect
 
@@ -147,7 +149,19 @@ The SDK captures a small set of **coarse, non-identifying** dimensions:
 - No persistent storage (no UserDefaults, Keychain, files, or Core Data)
 - No cross-session linking of any kind
 - No data sent to third parties
+- No stack traces, crash logs, or error messages — error tracking uses only developer-defined names, severity levels, and codes
+- No individual performance measurements stored — durations are aggregated into statistical digests
 - PII auto-stripping of email addresses, phone numbers, and SSN patterns from all event fields
+
+## App Store Privacy Labels
+
+When submitting to the App Store, declare the following in App Store Connect's Privacy section (all marked **Not Linked to User Identity** and **Not Used for Tracking**):
+
+- **Usage Data — Product Interaction** (feature counts, view counts, funnel steps)
+- **Diagnostics — Crash Data** (error events: name, severity, code — no stack traces)
+- **Diagnostics — Performance Data** (performance events: metric name, duration digest — no individual measurements)
+
+ATT is **not required**. See the [full guidance](https://github.com/trackless-telemetry/platform/blob/main/docs/requirements/sdks.md#227-app-store-privacy-compliance-guidance) for details.
 
 ## Thread Safety
 

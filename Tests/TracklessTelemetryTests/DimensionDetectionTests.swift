@@ -49,6 +49,19 @@ struct ContextDetectionTests {
         }
     }
 
+    // MARK: - Language
+
+    @Test("Language is non-empty lowercase code or nil")
+    func languageDetected() {
+        let ctx = ContextDetection.detect()
+        if let language = ctx.language {
+            #expect(!language.isEmpty)
+            // Language codes are 2-3 lowercase letters (ISO 639-1)
+            #expect(language.count >= 2 && language.count <= 3)
+            #expect(language == language.lowercased())
+        }
+    }
+
     // MARK: - No Identifiers
 
     @Test("Context struct does not contain any identifiers")
@@ -61,6 +74,17 @@ struct ContextDetectionTests {
         if let dc = ctx.deviceClass {
             let allowed = ["phone", "tablet", "desktop"]
             #expect(allowed.contains(dc))
+        }
+    }
+
+    // MARK: - SDK Version
+
+    @Test("SDK version is present and starts with ios/")
+    func sdkVersionPresent() {
+        let ctx = ContextDetection.detect()
+        #expect(ctx.sdkVersion != nil)
+        if let sdkVersion = ctx.sdkVersion {
+            #expect(sdkVersion.hasPrefix("ios/"))
         }
     }
 

@@ -37,26 +37,32 @@ struct TracklessEventContext: Codable, Sendable, Equatable {
     let osVersion: String?
     let deviceClass: String?
     let region: String?
+    let language: String?
     let appVersion: String?
     let buildNumber: String?
     let daysSinceInstall: Int?
+    let sdkVersion: String?
 
     init(
         platform: String = "ios",
         osVersion: String? = nil,
         deviceClass: String? = nil,
         region: String? = nil,
+        language: String? = nil,
         appVersion: String? = nil,
         buildNumber: String? = nil,
-        daysSinceInstall: Int? = nil
+        daysSinceInstall: Int? = nil,
+        sdkVersion: String? = nil
     ) {
         self.platform = platform
         self.osVersion = osVersion
         self.deviceClass = deviceClass
         self.region = region
+        self.language = language
         self.appVersion = appVersion
         self.buildNumber = buildNumber
         self.daysSinceInstall = daysSinceInstall
+        self.sdkVersion = sdkVersion
     }
 }
 
