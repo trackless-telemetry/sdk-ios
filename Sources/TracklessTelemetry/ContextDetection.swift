@@ -14,6 +14,8 @@ import UIKit
 /// - Region from system Locale only, never from network info
 enum ContextDetection {
 
+    private static let sdkVersion = "ios/0.2.2"
+
     /// Detect coarse device context. Captured once at configure time.
     static func detect() -> TracklessEventContext {
         TracklessEventContext(
@@ -21,9 +23,11 @@ enum ContextDetection {
             osVersion: detectOsVersion(),
             deviceClass: detectDeviceClass(),
             region: detectRegion(),
+            language: detectLanguage(),
             appVersion: detectAppVersion(),
             buildNumber: detectBuildNumber(),
-            daysSinceInstall: detectDaysSinceInstall()
+            daysSinceInstall: detectDaysSinceInstall(),
+            sdkVersion: sdkVersion
         )
     }
 
@@ -70,6 +74,19 @@ enum ContextDetection {
         } else {
             // iOS 15 / macOS 12 fallback
             return Locale.current.regionCode
+        }
+    }
+
+    /// Extract ISO 639-1 language code from system Locale (e.g., "en", "fr").
+    /// Derived from system setting only.
+    private static func detectLanguage() -> String? {
+        if #available(iOS 16, macOS 13, *) {
+            return Locale.current.language.languageCode?.identifier.lowercased()
+        } else {
+            // iOS 15 / macOS 12 fallback — extract language from locale identifier
+            let identifier = Locale.current.identifier
+            let language = identifier.components(separatedBy: CharacterSet(charactersIn: "_-")).first
+            return language?.lowercased()
         }
     }
 
