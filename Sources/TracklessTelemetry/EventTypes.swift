@@ -42,6 +42,7 @@ struct TracklessEventContext: Codable, Sendable, Equatable {
     let buildNumber: String?
     let daysSinceInstall: Int?
     let sdkVersion: String?
+    let distributionChannel: String?
 
     init(
         platform: String = "ios",
@@ -52,7 +53,8 @@ struct TracklessEventContext: Codable, Sendable, Equatable {
         appVersion: String? = nil,
         buildNumber: String? = nil,
         daysSinceInstall: Int? = nil,
-        sdkVersion: String? = nil
+        sdkVersion: String? = nil,
+        distributionChannel: String? = nil
     ) {
         self.platform = platform
         self.osVersion = osVersion
@@ -63,6 +65,7 @@ struct TracklessEventContext: Codable, Sendable, Equatable {
         self.buildNumber = buildNumber
         self.daysSinceInstall = daysSinceInstall
         self.sdkVersion = sdkVersion
+        self.distributionChannel = distributionChannel
     }
 }
 

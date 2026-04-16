@@ -14,7 +14,7 @@ import UIKit
 /// - Region from system Locale only, never from network info
 enum ContextDetection {
 
-    private static let sdkVersion = "ios/0.2.2"
+    private static let sdkVersion = "ios/0.2.3"
 
     /// Detect coarse device context. Captured once at configure time.
     static func detect() -> TracklessEventContext {
@@ -27,7 +27,8 @@ enum ContextDetection {
             appVersion: detectAppVersion(),
             buildNumber: detectBuildNumber(),
             daysSinceInstall: detectDaysSinceInstall(),
-            sdkVersion: sdkVersion
+            sdkVersion: sdkVersion,
+            distributionChannel: detectDistributionChannel()
         )
     }
 
@@ -112,5 +113,17 @@ enum ContextDetection {
         }
         let days = Calendar.current.dateComponents([.day], from: creationDate, to: Date()).day
         return days
+    }
+
+    /// Detect distribution channel: "debug", "testflight", or "app_store".
+    private static func detectDistributionChannel() -> String {
+        #if DEBUG
+        return "debug"
+        #else
+        if Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" {
+            return "testflight"
+        }
+        return "app_store"
+        #endif
     }
 }
