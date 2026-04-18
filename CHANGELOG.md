@@ -5,6 +5,12 @@ All notable changes to the Trackless Telemetry iOS SDK will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-04-18
+
+### Changed
+
+- **More defensive `distributionChannel` detection** — sessions where `Bundle.main.appStoreReceiptURL` is missing, or points at the production receipt path but no receipt file is present, are now reported as `"unknown"` instead of `"app_store"`. This prevents misclassifying Apple Beta App Review sessions (whose reviewer environment doesn't always produce a normal sandbox receipt) as real App Store installs. `"testflight"` and `"app_store"` now require positive evidence — a `sandboxReceipt` path or a present receipt file, respectively.
+
 ## [0.2.3] - 2026-04-16
 
 ### Added

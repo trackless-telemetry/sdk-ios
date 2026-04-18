@@ -14,7 +14,7 @@ import UIKit
 /// - Region from system Locale only, never from network info
 enum ContextDetection {
 
-    private static let sdkVersion = "ios/0.2.3"
+    private static let sdkVersion = "ios/0.2.4"
 
     /// Detect coarse device context. Captured once at configure time.
     static func detect() -> TracklessEventContext {
@@ -115,15 +115,27 @@ enum ContextDetection {
         return days
     }
 
-    /// Detect distribution channel: "debug", "testflight", or "app_store".
+    /// Detect distribution channel: "debug", "testflight", "app_store", or "unknown".
+    ///
+    /// Returns "unknown" when the receipt URL is missing, or when it points at the
+    /// production receipt path but no receipt file exists yet — both can occur during
+    /// Apple's Beta App Review, where the reviewer's environment doesn't always
+    /// produce a normal sandbox receipt. Treating these as "unknown" avoids
+    /// misclassifying reviewer sessions as real App Store installs.
     private static func detectDistributionChannel() -> String {
         #if DEBUG
         return "debug"
         #else
-        if Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
+            return "unknown"
+        }
+        if receiptURL.lastPathComponent == "sandboxReceipt" {
             return "testflight"
         }
-        return "app_store"
+        if FileManager.default.fileExists(atPath: receiptURL.path) {
+            return "app_store"
+        }
+        return "unknown"
         #endif
     }
 }

@@ -12,13 +12,13 @@
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `0.2.3` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.2.4` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.3")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.2.4")
 ]
 ```
 
@@ -524,7 +524,7 @@ Trackless collects **no user identifiers** and stores **only aggregate counts**:
 - **No individual performance measurements stored** — durations are aggregated server-side into statistical digests (t-digest)
 - **PII auto-stripping** — email addresses, phone numbers, and SSN patterns are automatically stripped from all event fields before buffering
 
-The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.2.3"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, or `"debug"`). All are coarse, non-identifying dimensions.
+The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.2.4"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, `"debug"`, or `"unknown"`). All are coarse, non-identifying dimensions.
 
 ### App Store Privacy Labels
 
