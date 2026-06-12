@@ -5,6 +5,18 @@ All notable changes to the Trackless Telemetry iOS SDK will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-11
+
+### Fixed
+
+- **Request body size limit** — flush now checks each serialized payload against the ingest endpoint's 50 KB body limit. Oversized payloads are split in half recursively until each request fits; a single event that exceeds the limit on its own is dropped with a warning. Previously oversized batches were rejected server-side and the whole batch was lost.
+- **Buffer-full visibility** — when the event buffer reaches its 1000-item cap and starts rejecting new events, the SDK now logs a warning (at most once per session, re-armed when a new session starts, respects `suppressWarnings`) instead of dropping data silently.
+- **Pre-configure visibility** — event methods called before `configure()` now log a one-time warning (respects `suppressWarnings`) instead of dropping events silently.
+
+### Changed
+
+- **Drop warnings never include raw input** — warnings emitted to the unified log only ever contain normalized (PII-stripped) event names; warnings for events dropped before validation omit the name entirely.
+
 ## [0.2.4] - 2026-04-18
 
 ### Changed

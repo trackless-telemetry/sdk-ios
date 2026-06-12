@@ -14,7 +14,7 @@ import UIKit
 /// - Region from system Locale only, never from network info
 enum ContextDetection {
 
-    private static let sdkVersion = "ios/0.2.4"
+    private static let sdkVersion = "ios/0.3.0"
 
     /// Detect coarse device context. Captured once at configure time.
     static func detect() -> TracklessEventContext {

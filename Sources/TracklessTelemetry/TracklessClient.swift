@@ -160,6 +160,13 @@ actor TracklessState {
     private var destroyed: Bool = false
     private var configured: Bool = false
 
+    // One-shot warning flags
+    private var warnedBufferFull = false
+    private var warnedNotConfigured = false
+
+    /// Test-only hook — receives each warning message that passes the suppression check.
+    private var onWarning: (@Sendable (String) -> Void)?
+
     // Components
     private var buffer = EventBuffer()
     private var circuitBreaker = CircuitBreaker()
@@ -197,6 +204,8 @@ actor TracklessState {
         enabled = config.enabled
         destroyed = false
         configured = true
+        warnedBufferFull = false
+        warnedNotConfigured = false
 
         buffer = EventBuffer()
         circuitBreaker = CircuitBreaker()
@@ -217,7 +226,7 @@ actor TracklessState {
 
     func recordEvent(type: TracklessEventType, name: String, detail: String? = nil) async {
         guard canRecord() else {
-            warnDrop("not recording", type: type.rawValue, name: name)
+            warnNotRecording(type: type.rawValue)
             return
         }
         guard let normalized = normalizeName(name) else { return }
@@ -229,7 +238,7 @@ actor TracklessState {
         }
 
         await session.recordActivity()
-        await buffer.add(TracklessEvent(type: type, name: normalized, detail: normalizedDetail))
+        await addToBuffer(TracklessEvent(type: type, name: normalized, detail: normalizedDetail))
         if debugLogging {
             if let normalizedDetail {
                 logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public) detail=\(normalizedDetail, privacy: .public)")
@@ -242,7 +251,7 @@ actor TracklessState {
 
     func recordFunnel(funnelName: String, stepIndex: Int, stepName: String) async {
         guard canRecord() else {
-            warnDrop("not recording", type: "funnel", name: funnelName)
+            warnNotRecording(type: "funnel")
             return
         }
         guard stepIndex >= 0 else { return }
@@ -255,7 +264,7 @@ actor TracklessState {
         }
 
         await session.recordActivity()
-        await buffer.add(TracklessEvent(
+        await addToBuffer(TracklessEvent(
             type: .funnel,
             name: normalizedFunnel,
             step: normalizedStep,
@@ -269,18 +278,18 @@ actor TracklessState {
 
     func recordPerformance(name: String, durationSeconds: Double, thresholdSeconds: Double? = nil) async {
         guard canRecord() else {
-            warnDrop("not recording", type: "performance", name: name)
+            warnNotRecording(type: "performance")
             return
         }
         guard let normalized = normalizeName(name) else { return }
         guard durationSeconds >= 0 else {
-            warnDrop("negative duration (\(durationSeconds))", type: "performance", name: name)
+            warnDrop("negative duration (\(durationSeconds))", type: "performance", name: normalized)
             return
         }
         if let thresholdSeconds, thresholdSeconds <= 0 { return }
 
         await session.recordActivity()
-        await buffer.add(TracklessEvent(type: .performance, name: normalized, duration: durationSeconds, threshold: thresholdSeconds))
+        await addToBuffer(TracklessEvent(type: .performance, name: normalized, duration: durationSeconds, threshold: thresholdSeconds))
         if debugLogging {
             let thresholdStr = thresholdSeconds.map { " threshold=\($0)s" } ?? ""
             logger.info("[Trackless] performance — \(normalized, privacy: .public) duration=\(durationSeconds)s\(thresholdStr, privacy: .public)")
@@ -290,7 +299,7 @@ actor TracklessState {
 
     func recordError(name: String, severity: TracklessErrorSeverity, code: String?) async {
         guard canRecord() else {
-            warnDrop("not recording", type: "error", name: name)
+            warnNotRecording(type: "error")
             return
         }
         guard let normalized = normalizeName(name) else { return }
@@ -301,7 +310,7 @@ actor TracklessState {
             nil
         }
         await session.recordActivity()
-        await buffer.add(TracklessEvent(
+        await addToBuffer(TracklessEvent(
             type: .error,
             name: normalized,
             severity: severity,
@@ -354,12 +363,36 @@ actor TracklessState {
 
     private func warn(_ message: String) {
         guard !suppressWarnings else { return }
+        onWarning?(message)
         logger.warning("[Trackless] \(message, privacy: .public)")
     }
 
+    /// `name` must be a normalized (PII-stripped) value — it is emitted to the
+    /// unified log as `.public`, so raw caller input must never reach it.
     private func warnDrop(_ reason: String, type: String, name: String) {
-        guard !suppressWarnings else { return }
-        logger.warning("[Trackless] dropped \(type, privacy: .public) \"\(name, privacy: .public)\" — \(reason, privacy: .public)")
+        warn("dropped \(type) \"\(name)\" — \(reason)")
+    }
+
+    /// Warn when an event is dropped because the SDK is not recording.
+    /// Pre-configure drops warn once; disabled or destroyed drops warn per event.
+    /// The event name is omitted here: it is raw, pre-normalization input.
+    private func warnNotRecording(type: String) {
+        if !configured && !destroyed {
+            guard !warnedNotConfigured else { return }
+            warnedNotConfigured = true
+            warn("event dropped — SDK is not configured (call Trackless.configure() first)")
+        } else {
+            warn("dropped \(type) event — not recording")
+        }
+    }
+
+    /// Add an event to the buffer, warning once per session when the buffer is full.
+    private func addToBuffer(_ event: TracklessEvent) async {
+        let accepted = await buffer.add(event)
+        if !accepted, !warnedBufferFull {
+            warnedBufferFull = true
+            warn("event buffer full — dropping new events until the next flush (logged once per session)")
+        }
     }
 
     private func normalizeName(_ name: String) -> String? {
@@ -374,14 +407,15 @@ actor TracklessState {
     private func startNewSession() async {
         let started = await session.start()
         if started {
-            await buffer.add(TracklessEvent(type: .session, name: "start"))
+            warnedBufferFull = false
+            await addToBuffer(TracklessEvent(type: .session, name: "start"))
         }
     }
 
     private func endCurrentSession() async {
         guard let result = await session.end() else { return }
         await funnels.clear()
-        await buffer.add(TracklessEvent(
+        await addToBuffer(TracklessEvent(
             type: .session,
             name: "end",
             stepIndex: result.depth,
@@ -406,7 +440,21 @@ actor TracklessState {
         let payloads = await buffer.drain(environment: environment.rawValue, context: context)
         guard !payloads.isEmpty else { return }
 
+        // Enforce the server's request body size limit on each chunk before sending.
+        var sizedPayloads: [TracklessEventPayload] = []
         for payload in payloads {
+            let split = EventBuffer.splitBySize(payload)
+            sizedPayloads.append(contentsOf: split.payloads)
+            for dropped in split.dropped {
+                warnDrop(
+                    "single-event payload exceeds \(EventBuffer.maxPayloadBytes / 1024)KB limit",
+                    type: dropped.type.rawValue,
+                    name: dropped.name
+                )
+            }
+        }
+
+        for payload in sizedPayloads {
             do {
                 let result = try await HTTPClient.sendPayload(
                     endpoint: endpoint,
@@ -506,6 +554,23 @@ actor TracklessState {
         }
     }
     #endif
+
+    // MARK: - Test Support
+
+    /// Test-only: observe warnings that pass the suppression check.
+    func setOnWarningForTesting(_ handler: (@Sendable (String) -> Void)?) {
+        onWarning = handler
+    }
+
+    /// Test-only: replace the event buffer with one of a given capacity.
+    func replaceBufferForTesting(maxItems: Int) {
+        buffer = EventBuffer(maxItems: maxItems)
+    }
+
+    /// Test-only: current number of unique items in the buffer.
+    func bufferSizeForTesting() async -> Int {
+        await buffer.totalSize
+    }
 }
 
 // MARK: - Timer State (thread-safe)
