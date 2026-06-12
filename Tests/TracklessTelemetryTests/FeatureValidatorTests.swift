@@ -66,7 +66,7 @@ struct FeatureValidatorTests {
         #expect(FeatureValidator.isValid("settings..opened") == false)
     }
 
-    @Test("Multiple dots for hierarchical grouping are valid")
+    @Test("Multiple dots are accepted by the regex")
     func multipleDots() {
         #expect(FeatureValidator.isValid("a.b.c") == true)
         #expect(FeatureValidator.isValid("settings.theme.dark") == true)

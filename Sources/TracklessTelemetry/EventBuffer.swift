@@ -15,6 +15,9 @@ actor EventBuffer {
     /// Max events per flush payload.
     static let maxEventsPerFlush = 100
 
+    /// Max serialized payload size in bytes — matches the server's request body limit.
+    static let maxPayloadBytes = 50 * 1024
+
     /// Aggregated events keyed by rollup key.
     private var aggregated: [String: TracklessEvent] = [:]
     /// Non-aggregatable events (funnel steps, session start/end).
@@ -124,6 +127,48 @@ actor EventBuffer {
         }
 
         return payloads
+    }
+
+    /// Split a payload into payloads that each fit within the serialized size limit.
+    ///
+    /// If the encoded payload exceeds `limit`, its events are split in half and each
+    /// half is retried recursively. A single-event payload that still exceeds the
+    /// limit is returned in `dropped` — the caller decides how to report it. The
+    /// wire format is unchanged: every returned payload is a complete
+    /// `TracklessEventPayload` with the same date, environment, and context.
+    static func splitBySize(
+        _ payload: TracklessEventPayload,
+        limit: Int = EventBuffer.maxPayloadBytes
+    ) -> (payloads: [TracklessEventPayload], dropped: [TracklessEvent]) {
+        guard let encoded = try? JSONEncoder().encode(payload) else {
+            // Encoding failures surface through the HTTP layer; pass through unchanged.
+            return ([payload], [])
+        }
+        if encoded.count <= limit {
+            return ([payload], [])
+        }
+        guard payload.events.count > 1 else {
+            return ([], payload.events)
+        }
+
+        let mid = payload.events.count / 2
+        let halves = [Array(payload.events[..<mid]), Array(payload.events[mid...])]
+        var payloads: [TracklessEventPayload] = []
+        var dropped: [TracklessEvent] = []
+        for half in halves {
+            let result = splitBySize(
+                TracklessEventPayload(
+                    date: payload.date,
+                    environment: payload.environment,
+                    context: payload.context,
+                    events: half
+                ),
+                limit: limit
+            )
+            payloads.append(contentsOf: result.payloads)
+            dropped.append(contentsOf: result.dropped)
+        }
+        return (payloads, dropped)
     }
 
     /// Clear the buffer without draining.
