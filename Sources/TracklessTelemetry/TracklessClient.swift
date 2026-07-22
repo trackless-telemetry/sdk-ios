@@ -173,6 +173,7 @@ actor TracklessState {
     private var context = TracklessEventContext(platform: "ios")
     private var session = SessionManager()
     private var funnels = FunnelTracker()
+    private var featureFirstUses = FeatureFirstUseTracker()
 
     // Timer and observer (non-isolated for Sendable)
     private let timerState = TimerState()
@@ -212,6 +213,7 @@ actor TracklessState {
         context = ContextDetection.detect()
         session = SessionManager()
         funnels = FunnelTracker()
+        featureFirstUses = FeatureFirstUseTracker()
 
         if debugLogging {
             logger.info("[Trackless] configured — env=\(self.environment.rawValue, privacy: .public) flush=\(Int(self.flushIntervalSeconds))s")
@@ -237,8 +239,16 @@ actor TracklessState {
             nil
         }
 
+        // Mark the first use of each feature name within the session (session reach).
+        // Dedup is on the normalized name only (not name+detail) — see spec §25.4.1 —
+        // so only feature events ever carry firstUses.
+        var firstUses: Int?
+        if type == .feature, await featureFirstUses.markFirstUse(name: normalized) {
+            firstUses = 1
+        }
+
         await session.recordActivity()
-        await addToBuffer(TracklessEvent(type: type, name: normalized, detail: normalizedDetail))
+        await addToBuffer(TracklessEvent(type: type, name: normalized, firstUses: firstUses, detail: normalizedDetail))
         if debugLogging {
             if let normalizedDetail {
                 logger.info("[Trackless] \(type.rawValue, privacy: .public) — \(normalized, privacy: .public) detail=\(normalizedDetail, privacy: .public)")
@@ -415,6 +425,7 @@ actor TracklessState {
     private func endCurrentSession() async {
         guard let result = await session.end() else { return }
         await funnels.clear()
+        await featureFirstUses.clear()
         await addToBuffer(TracklessEvent(
             type: .session,
             name: "end",
@@ -570,6 +581,20 @@ actor TracklessState {
     /// Test-only: current number of unique items in the buffer.
     func bufferSizeForTesting() async -> Int {
         await buffer.totalSize
+    }
+
+    /// Test-only: drain the buffer and return its flattened events. Reproduces the
+    /// buffer drain a flush performs, without any network I/O — used to assert that
+    /// the first-use set survives a mid-session flush.
+    func drainBufferForTesting() async -> [TracklessEvent] {
+        let payloads = await buffer.drain(environment: environment.rawValue, context: context)
+        return payloads.flatMap { $0.events }
+    }
+
+    /// Test-only: end the current session (mirrors the lifecycle/destroy reset path,
+    /// clearing the funnel and first-use trackers).
+    func endSessionForTesting() async {
+        await endCurrentSession()
     }
 }
 

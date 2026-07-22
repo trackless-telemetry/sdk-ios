@@ -74,6 +74,13 @@ struct TracklessEvent: Codable, Sendable, Equatable {
     let type: TracklessEventType
     let name: String
     var count: Int?
+    /// Number of sessions in which this feature was used for the first time within
+    /// this buffer window. Meaningful only for `type == .feature`. Set to 1 on the
+    /// first use of a feature name per session (see feature-reach spec §25.4). The
+    /// synthesized `Codable` conformance omits the key entirely when this is `nil`,
+    /// and the buffer never stores 0 — so `firstUses` reaches the wire only when >= 1
+    /// (the backend rejects `firstUses: 0`).
+    var firstUses: Int?
     var detail: String?
     var step: String?
     var stepIndex: Int?
@@ -87,6 +94,7 @@ struct TracklessEvent: Codable, Sendable, Equatable {
         type: TracklessEventType,
         name: String,
         count: Int? = nil,
+        firstUses: Int? = nil,
         detail: String? = nil,
         step: String? = nil,
         stepIndex: Int? = nil,
@@ -99,6 +107,7 @@ struct TracklessEvent: Codable, Sendable, Equatable {
         self.type = type
         self.name = name
         self.count = count
+        self.firstUses = firstUses
         self.detail = detail
         self.step = step
         self.stepIndex = stepIndex

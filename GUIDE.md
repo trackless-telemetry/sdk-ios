@@ -239,6 +239,8 @@ Trackless.feature("settings", detail: "notifications")
 
 **When to use:** Button taps, toggle switches, user-initiated actions.
 
+**Session reach (automatic):** The first time each feature name is used in a session, the SDK marks it so the dashboard can report *session reach* — the share of sessions that used a feature at least once — alongside raw counts. This is fully automatic; keep calling `feature(...)` normally. Reach dedups on the feature **name**, so using the same feature with different `detail:` values in one session still counts as reaching that feature once. The tracking is in-memory only and resets when the session ends — no identifiers, no persistence.
+
 **SwiftUI button example:**
 
 ```swift

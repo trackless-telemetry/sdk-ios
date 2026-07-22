@@ -5,7 +5,11 @@ All notable changes to the Trackless Telemetry iOS SDK will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-06-11
+## [0.3.0] - 2026-07-21
+
+### Added
+
+- **Session reach for features** — the first `feature(...)` call for a given name within a session now carries `firstUses: 1`, letting the dashboard compute what share of sessions used each feature (session reach), not just raw counts. Dedup is keyed on the normalized feature **name only** (not `name` + `detail`), so a session that exercises several detail variants still contributes exactly one first-use. The per-session first-use set is in-memory only and resets on session end (mirroring funnel-step dedup); it deliberately survives buffer flushes, so a rolled-up event spanning a session boundary may report `firstUses` greater than 1. Repeats within a session, non-feature events, and detail variants after the first use send no `firstUses` field. Fully backward compatible: older backends ignore the field.
 
 ### Fixed
 
