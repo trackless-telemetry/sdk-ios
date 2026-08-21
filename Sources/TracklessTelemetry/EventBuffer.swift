@@ -61,7 +61,11 @@ actor EventBuffer {
 
         if var existing = aggregated[key] {
             existing.count = (existing.count ?? 1) + (event.count ?? 1)
-            existing.firstUses = Self.sumFirstUses(existing.firstUses, event.firstUses)
+            existing.firstUses = Self.sumFirstMarkers(existing.firstUses, event.firstUses)
+            existing.firstOccurrences = Self.sumFirstMarkers(
+                existing.firstOccurrences,
+                event.firstOccurrences
+            )
             aggregated[key] = existing
             return true
         }
@@ -70,16 +74,18 @@ actor EventBuffer {
 
         var newEvent = event
         newEvent.count = event.count ?? 1
-        // firstUses is copied through as-is (nil unless this was a session's first use).
-        // It is never coerced to 0 — a 0 on the wire is rejected by the backend.
+        // firstUses / firstOccurrences are copied through as-is (nil unless this was a
+        // session's first use / first occurrence). Neither is ever coerced to 0 — a 0 on
+        // the wire is rejected by the backend.
         aggregated[key] = newEvent
         return true
     }
 
-    /// Sum two optional `firstUses` values, treating `nil` as 0. Returns `nil` when the
-    /// total is 0 so the field stays absent on the wire (only features ever carry it,
-    /// and a merged non-first-use entry must not encode `firstUses: 0`).
-    private static func sumFirstUses(_ lhs: Int?, _ rhs: Int?) -> Int? {
+    /// Sum two optional first-marker values (`firstUses` for features,
+    /// `firstOccurrences` for errors), treating `nil` as 0. Returns `nil` when the total
+    /// is 0 so the field stays absent on the wire (only the owning event type ever
+    /// carries it, and a merged repeat-only entry must not encode a `0`).
+    private static func sumFirstMarkers(_ lhs: Int?, _ rhs: Int?) -> Int? {
         let total = (lhs ?? 0) + (rhs ?? 0)
         return total > 0 ? total : nil
     }

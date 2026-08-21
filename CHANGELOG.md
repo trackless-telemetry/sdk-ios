@@ -5,6 +5,12 @@ All notable changes to the Trackless Telemetry iOS SDK will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-21
+
+### Added
+
+- **Session reach for errors** — the first `error(...)` call for a given name within a session now carries `firstOccurrences: 1`, letting the dashboard compute what share of sessions hit each error (session reach), not just raw counts. This mirrors the existing `firstUses` marker for feature events: dedup is keyed on the normalized error **name only** (not `name` + `severity` + `code`), so a session that raises the same error at several severities or with several codes still contributes exactly one first occurrence. The per-session first-occurrence set is in-memory only and resets on session end; it deliberately survives buffer flushes, so a rolled-up event spanning a session boundary may report `firstOccurrences` greater than 1. Repeats within a session and non-error events send no `firstOccurrences` field. Fully backward compatible: older backends ignore the field.
+
 ## [0.3.0] - 2026-07-21
 
 ### Added

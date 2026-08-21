@@ -62,13 +62,13 @@ In the `@main struct App { init() { ... } }` for SwiftUI, or `application(_:didF
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `0.3.0` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.4.0` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.3.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.4.0")
 ]
 ```
 
@@ -328,6 +328,8 @@ do {
 
 **When to use:** Caught exceptions, failed network requests, validation errors, any error you want to trend over time.
 
+**Session reach (automatic):** The first time each error name occurs in a session, the SDK marks it so the dashboard can report *session reach* — the share of sessions that hit an error at least once — alongside raw counts. This is fully automatic; keep calling `error(...)` normally. Reach dedups on the error **name**, so the same error raised at several severities or with several `code:` values in one session still counts as reaching that error once. The tracking is in-memory only and resets when the session ends — no identifiers, no persistence.
+
 ## 4. Event Naming Rules
 
 All event fields (`name`, `detail`, `step`, `code`) are automatically normalized before buffering:
@@ -585,7 +587,7 @@ Trackless collects **no user identifiers** and stores **only aggregate counts**:
 - **No individual performance measurements stored** — durations are aggregated server-side into statistical digests (t-digest)
 - **PII auto-stripping** — email addresses, phone numbers, and SSN patterns are automatically stripped from all event fields before buffering
 
-The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.3.0"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, `"debug"`, or `"unknown"`). All are coarse, non-identifying dimensions.
+The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.4.0"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, `"debug"`, or `"unknown"`). All are coarse, non-identifying dimensions.
 
 ### App Store Privacy Labels
 

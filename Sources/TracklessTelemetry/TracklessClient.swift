@@ -174,6 +174,7 @@ actor TracklessState {
     private var session = SessionManager()
     private var funnels = FunnelTracker()
     private var featureFirstUses = FeatureFirstUseTracker()
+    private var errorFirstOccurrences = ErrorFirstOccurrenceTracker()
 
     // Timer and observer (non-isolated for Sendable)
     private let timerState = TimerState()
@@ -214,6 +215,7 @@ actor TracklessState {
         session = SessionManager()
         funnels = FunnelTracker()
         featureFirstUses = FeatureFirstUseTracker()
+        errorFirstOccurrences = ErrorFirstOccurrenceTracker()
 
         if debugLogging {
             logger.info("[Trackless] configured — env=\(self.environment.rawValue, privacy: .public) flush=\(Int(self.flushIntervalSeconds))s")
@@ -319,10 +321,21 @@ actor TracklessState {
         } else {
             nil
         }
+
+        // Mark the first occurrence of each error name within the session (session
+        // reach for errors). Dedup is on the normalized name only (not name+severity+
+        // code), mirroring feature first-use dedup — so only error events ever carry
+        // firstOccurrences.
+        var firstOccurrences: Int?
+        if await errorFirstOccurrences.markFirstOccurrence(name: normalized) {
+            firstOccurrences = 1
+        }
+
         await session.recordActivity()
         await addToBuffer(TracklessEvent(
             type: .error,
             name: normalized,
+            firstOccurrences: firstOccurrences,
             severity: severity,
             code: normalizedCode
         ))
@@ -426,6 +439,7 @@ actor TracklessState {
         guard let result = await session.end() else { return }
         await funnels.clear()
         await featureFirstUses.clear()
+        await errorFirstOccurrences.clear()
         await addToBuffer(TracklessEvent(
             type: .session,
             name: "end",
@@ -592,7 +606,7 @@ actor TracklessState {
     }
 
     /// Test-only: end the current session (mirrors the lifecycle/destroy reset path,
-    /// clearing the funnel and first-use trackers).
+    /// clearing the funnel, first-use, and first-occurrence trackers).
     func endSessionForTesting() async {
         await endCurrentSession()
     }

@@ -71,7 +71,7 @@ Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.3.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.4.0")
 ]
 ```
 
@@ -185,7 +185,7 @@ The SDK captures a small set of **coarse, non-identifying** dimensions:
 | `appVersion` | `"2.1.0"` | `Bundle.main` |
 | `buildNumber` | `"142"` | `Bundle.main` |
 | `daysSinceInstall` | `45` | Documents directory creation date |
-| `sdkVersion` | `"ios/0.3.0"` | SDK platform and version identifier |
+| `sdkVersion` | `"ios/0.4.0"` | SDK platform and version identifier |
 | `distributionChannel` | `"testflight"`, `"app_store"`, `"debug"`, `"unknown"` | App Store receipt URL + build config |
 
 ## What Trackless Does NOT Collect
