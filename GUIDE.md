@@ -62,13 +62,13 @@ In the `@main struct App { init() { ... } }` for SwiftUI, or `application(_:didF
 https://github.com/trackless-telemetry/sdk-ios
 ```
 
-Select version `0.4.0` or later. Add `TracklessTelemetry` to your app target.
+Select version `0.4.1` or later. Add `TracklessTelemetry` to your app target.
 
 ### Swift Package Manager (Package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.4.0")
+    .package(url: "https://github.com/trackless-telemetry/sdk-ios", from: "0.4.1")
 ]
 ```
 
@@ -88,6 +88,11 @@ Add to your target:
 ## 2. Configure
 
 Call `Trackless.configure()` once at app launch — before any events are recorded.
+
+**The API key is a human step.** It comes from the developer's Trackless dashboard
+(`dashboard.tracklesstelemetry.com`) and is shown once, at app creation. `tl_your_api_key_here` is
+a placeholder — ask the developer for the real key. Never fabricate a key or commit a placeholder
+as if it were real.
 
 ### SwiftUI App
 
@@ -374,6 +379,22 @@ Trackless.feature("distance_preset.1_mile")
 
 **Which types support grouping?** The `detail` parameter is supported on `feature` and `view` events. The dashboard's automatic donut-chart visualization applies to both.
 
+### Names Come From Finite Sets — Never Interpolate Runtime Values
+
+Every event field (`name`, `detail`, `step`, `code`) must come from a set you can enumerate at the call site. Never interpolate runtime values — user input, record IDs, URLs, dynamic format strings — into any of them:
+
+```swift
+// WRONG — unbounded runtime value interpolated into the name
+Trackless.feature("export_\(format)")
+Trackless.view("product_\(productID)")
+
+// CORRECT — fixed names; detail only when its values are a closed set
+Trackless.feature("export", detail: format) // only if format is a fixed set like "csv" / "json" / "pdf"
+Trackless.view("product")
+```
+
+This is enforced server-side: a per-app daily cardinality budget caps the number of distinct `(type, name, detail)` combinations. Once the budget is used up, events with **new** combinations are dropped for the rest of the day (already-seen names keep counting). An interpolated value burns the budget silently — moving it from `name` into `detail:` does not help, because `detail` is part of the tuple. If a value is unbounded, map it to a small closed set before recording, or leave it out.
+
 ## 5. Session Lifecycle
 
 Sessions are managed automatically. No code needed.
@@ -389,7 +410,7 @@ Sessions are managed automatically. No code needed.
 Events are buffered in memory and sent in batches:
 
 - **Periodic flush:** Every 60 seconds if the buffer is non-empty
-- **Item thresholdSeconds:** When the buffer reaches 100 unique items
+- **Item threshold:** When the buffer reaches 100 unique items
 - **Session end:** Flushed when the app backgrounds (using `UIApplication.beginBackgroundTask`)
 - **Manual:** Call `await Trackless.flush()` at any time
 - **Client-side rollup:** Duplicate events are pre-aggregated (e.g., 50 `feature("save")` calls become one event with `count: 50`)
@@ -587,7 +608,7 @@ Trackless collects **no user identifiers** and stores **only aggregate counts**:
 - **No individual performance measurements stored** — durations are aggregated server-side into statistical digests (t-digest)
 - **PII auto-stripping** — email addresses, phone numbers, and SSN patterns are automatically stripped from all event fields before buffering
 
-The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.4.0"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, `"debug"`, or `"unknown"`). All are coarse, non-identifying dimensions.
+The only context collected is: platform (`"ios"`), OS version (major only, e.g., `"17"`), device class (phone/tablet/desktop), region (two-letter country code from `Locale.current`, e.g., `"US"`), language (ISO 639-1 code from `Locale.current`, e.g., `"en"`), app version, build number, days since install, and `sdkVersion` (automatically included, e.g., `"ios/0.4.1"`), and distribution channel (automatically detected: `"testflight"`, `"app_store"`, `"debug"`, or `"unknown"`). All are coarse, non-identifying dimensions.
 
 ### App Store Privacy Labels
 
@@ -623,3 +644,51 @@ Store the API key securely. Do **not** hardcode it in source files committed to 
    #endif
    Trackless.configure(apiKey: apiKey)
    ```
+
+The real key comes from the developer's Trackless dashboard (shown once at app creation) — ask for it rather than inventing a value.
+
+## 11. Verify the Integration
+
+An agent can verify the integration end-to-end without human help: enable debug logging, record one event, force a flush, and read the unified log.
+
+```swift
+Trackless.configure(
+    apiKey: "...", // the real key, from the developer
+    debugLogging: true
+)
+
+Trackless.feature("integration_test")
+try? await Task.sleep(nanoseconds: 200_000_000) // event methods enqueue asynchronously
+await Trackless.flush()
+```
+
+The SDK logs to the Apple **unified log**, subsystem `com.trackless.sdk`, category `telemetry`. The lines appear in the Xcode debug console while running from Xcode, in Console.app, or via:
+
+```bash
+log stream --predicate 'subsystem == "com.trackless.sdk"' --level info
+```
+
+Look for these signals, in order:
+
+| Signal                                                                 | Meaning                                              |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| `[Trackless] configured — env=sandbox flush=60s`                       | `configure()` ran (iOS does not log the endpoint)    |
+| `[Trackless] feature — integration_test`                               | the event was recorded and buffered                  |
+| `[Trackless] flush success — HTTP 200`                                 | the ingest endpoint accepted the batch — **success** |
+| `[Trackless] flush failed — HTTP ...` or `[Trackless] flush rejected — HTTP ...` | the send failed — decode with Section 12   |
+
+iOS logs no pre-send "flush — N events" line — `flush success` is the signal to wait for. Debug lines are logged at `.info` level and appear only with `debugLogging: true`. Failure lines are logged as warnings and appear unless `suppressWarnings: true`.
+
+The human-visible confirmation: once the first event lands, the app's getting-started checklist in the Trackless dashboard marks **"See your first feature data"** as complete.
+
+## 12. Troubleshooting
+
+The ingest endpoint's error responses are deliberately generic on the wire — they never disclose which rule was broken, how close the app is to a limit, or anything about the plan. This table is the decoder for what the SDK logs. (`flush rejected` lines append up to 200 characters of the response body.)
+
+| Log signal                                                | What it means                                                                                                                                                                | What to do                                                                                                                                                                              |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `flush rejected — HTTP 401`                               | Wrong or regenerated API key. Keys are shown once at creation; regenerating a key invalidates the old one immediately.                                                        | Get the current key from the dashboard and rebuild.                                                                                                                                       |
+| `flush rejected — HTTP 402`                               | The plan's monthly event quota is reached. The endpoint stops accepting events — nothing converts silently and nothing is billed as overage.                                  | Wait for the next billing period, or upgrade the plan in the dashboard.                                                                                                                   |
+| `flush rejected — HTTP 429`                               | Per-app rate limit. The SDK discards the batch without retrying (4xx never triggers the circuit breaker).                                                                     | Back off. Persistent 429s usually mean an event-volume bug — e.g., recording inside a view body that re-evaluates. Client-side rollup normally keeps request rates far below the limit.  |
+| `flush failed — HTTP 5xx` or a network error via `onError` | Server or network problem. The failed batch is **not** re-sent (its events are dropped); a circuit breaker pauses further flush attempts with backoff (30s → 1m → 5m → 15m → 60m), and a single success resets it. | Nothing — subsequent events flush normally once the endpoint recovers.                                                                                                                    |
+| No request ever sent                                      | The device is offline, a proxy/firewall blocks the endpoint, or the SDK never recorded anything.                                                                              | Confirm `configure()` ran (a one-time `event dropped — SDK is not configured` warning appears otherwise), that events were recorded (debug lines), and that the circuit breaker is not open from earlier failures. |

@@ -1,0 +1,33 @@
+# Trackless iOS SDK — AI Integration Rules
+
+This package is `TracklessTelemetry`, a privacy-first iOS/macOS analytics SDK. See GUIDE.md in this directory for the complete integration guide.
+
+## Quick Reference
+
+1. Install via SPM: `https://github.com/trackless-telemetry/sdk-ios` (latest release)
+2. Configure once at app launch with just an API key:
+   ```swift
+   import TracklessTelemetry
+   Trackless.configure(apiKey: "tl_your_api_key_here")
+   ```
+3. Call typed event methods anywhere:
+   - `Trackless.view("home")` — screen views (optional detail: `Trackless.view("settings", detail: "profile")`)
+   - `Trackless.feature("export_clicked")` — feature usage (optional detail: `Trackless.feature("theme", detail: "dark")`)
+   - `Trackless.funnel("checkout", stepIndex: 0, step: "view_cart")` — multi-step flows
+   - `Trackless.performance("api_fetch", durationSeconds: 0.342)` — timing in seconds (optional threshold: `Trackless.performance("api_fetch", durationSeconds: 0.342, thresholdSeconds: 2.0)`)
+   - `Trackless.error("payment_failed", severity: .error, code: "DECLINED")` — error tracking
+
+## Important Rules
+
+- Do NOT create an analytics wrapper class (`Analytics.swift`, `AnalyticsService`, `TelemetryManager`) — `Trackless` is already a thread-safe static singleton; call it directly
+- `detail:` is a SEPARATE parameter, never concatenated into the name: `Trackless.feature("theme", detail: "dark")`, not `Trackless.feature("theme_dark")` — the dashboard groups detail distributions per name
+- The endpoint defaults to `https://api.tracklesstelemetry.com` — do NOT require the user to provide it
+- Store the API key in xcconfig or Info.plist, not hardcoded in committed source
+- Event names and fields (`detail`, `step`, `code`) are auto-normalized: lowercased, spaces/special chars replaced with `_`, trimmed, truncated to 100 chars. Developers can pass natural strings like `"Sign Up Button"` (becomes `"sign_up_button"`). Use the optional `detail` parameter on `feature()` and `view()` to distinguish variants — dashboard auto-groups features with detail values into donut charts
+- Performance duration is in **seconds**, not milliseconds
+- All methods are non-blocking, non-throwing, and safe to call from any thread
+- Environment auto-detects: DEBUG → `.sandbox`, Release → `.production`
+- App version and build number are auto-read from Bundle.main
+- No IDFA/IDFV — no App Tracking Transparency prompt needed
+- Sessions are managed automatically via app lifecycle notifications
+- Use `.trackView("name")` view modifier pattern for SwiftUI view tracking

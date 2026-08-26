@@ -144,6 +144,15 @@ public final class Trackless: Sendable {
 // MARK: - Internal State Actor
 
 /// Manages all mutable SDK state with actor isolation for thread safety.
+/// Reason text for a name that fails normalization.
+///
+/// Used both for the developer warning and as the associated value of
+/// `TracklessError.invalidFeatureName`. It deliberately describes *why* the
+/// name was rejected rather than quoting the name: normalization only fails
+/// after PII stripping has run, so no PII-stripped form of the name survives.
+private let invalidEventNameReason =
+    "it normalized to an empty or disallowed value (raw name omitted: it may contain PII)"
+
 actor TracklessState {
 
     // Configuration
@@ -418,10 +427,23 @@ actor TracklessState {
         }
     }
 
+    /// Normalize a caller-supplied event name, warning when it is rejected.
+    ///
+    /// The name is omitted from both the warning and the error. Normalization
+    /// only fails *after* PII stripping has run, so no PII-stripped form of the
+    /// name survives to report. The inputs that actually reach this branch are
+    /// the ones the PII guard does *not* recognize — anything it does recognize
+    /// is replaced with the literal "[REDACTED]", which normalizes to a
+    /// non-empty "redacted" and is accepted. What is left is chiefly
+    /// non-Latin-script text, which includes personal names.
+    ///
+    /// `warn` emits to the unified log as `.public` (see the invariant on
+    /// `warnDrop`), where a sysdiagnose bundle would collect it, and `onError`
+    /// is commonly forwarded to a crash reporter.
     private func normalizeName(_ name: String) -> String? {
         guard let normalized = FeatureValidator.normalize(name) else {
-            warn("event name rejected: \"\(name)\"")
-            onError?(TracklessError.invalidFeatureName(name))
+            warn("event name rejected — \(invalidEventNameReason)")
+            onError?(TracklessError.invalidFeatureName(invalidEventNameReason))
             return nil
         }
         return normalized
@@ -658,6 +680,11 @@ final class ObserverState: @unchecked Sendable {
 
 /// Internal error types for the SDK.
 public enum TracklessError: Error, Sendable {
+    /// An event name was rejected by normalization.
+    ///
+    /// The associated value is the *reason* for the rejection, not the name.
+    /// The raw, pre-normalization name may contain PII and is never carried
+    /// here — see `invalidEventNameReason`.
     case invalidFeatureName(String)
     case flushFailed(statusCode: Int)
     case flushRejected(statusCode: Int, body: String)
