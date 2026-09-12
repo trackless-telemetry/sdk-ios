@@ -80,14 +80,14 @@ methods enqueue asynchronously — allow a brief pause first). The SDK logs to t
 subsystem `com.trackless.sdk`: look for `[Trackless] flush success — HTTP 200` (there is no
 pre-send "flush — N events" line on iOS); failures log
 `[Trackless] flush failed/rejected — HTTP ...`. GUIDE.md §11 carries the full recipe and §12 the
-troubleshooting decoder (401/402/429/5xx). When the first event lands, the dashboard's
-getting-started checklist marks **"See your first feature data"**.
+troubleshooting decoder (400/401/402/413/429/5xx). When the first event lands, the
+dashboard's getting-started checklist marks **"See your first feature data"**.
 
 ## After release: the loop back to you
 
 Once the instrumented app ships, production usage accumulates in Trackless as aggregate counts
-only — no individual records, no identifiers. From the dashboard's Agent context view, the
-developer can copy or download a context pack — the counts for a chosen window and slice,
+only — no individual records, no identifiers. From the dashboard's Agent pack page, the
+developer can copy or download a pack — the counts for a chosen window and slice,
 together with instructions for reading them — and paste it into the agent they already use
 (likely you). Trackless itself never calls a model and never analyzes anything; interpreting the
 counts against the codebase is the customer's agent's job. Instrument names thoughtfully now and
